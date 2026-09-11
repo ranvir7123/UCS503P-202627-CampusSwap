@@ -44,7 +44,7 @@ you started it.
 | Design spec and build plans | `planning/` |
 | Weekly journals (one folder each) | `journals/` |
 | Project proposal | `project-proposal/` |
-| Prototype report (LaTeX) | `project-report-prototype-stage/` (**not written yet**: needs the Overleaf template) |
+| Prototype report (LaTeX, TIET `tietreport` class) | `project-report-prototype-stage/` (`main.tex`, `tietreport.cls`, `references.bib`, `figures/`). Upload these to Overleaf to get the PDF. |
 
 ---
 
