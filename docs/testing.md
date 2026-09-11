@@ -6,7 +6,7 @@ Run everything from the repository root:
 .venv\Scripts\python -m pytest
 ```
 
-There are **89 tests**, and they take about 8 seconds. They live in `code/backend/tests/`.
+There are **90 tests**, and they take about 10 to 15 seconds. They live in `code/backend/tests/`.
 
 | File | Tests | What it proves |
 |---|---|---|
@@ -20,7 +20,7 @@ There are **89 tests**, and they take about 8 seconds. They live in `code/backen
 | `test_matching_service.py` | 9 | Matching rounds: the seeded pool gives one 2-, 3- and 4-way chain; dry runs change nothing; only one run at a time |
 | `test_cycles_service.py` | 8 | Confirm, decline, deadline expiry, approval moving students |
 | `test_views_service.py` | 9 | The data each page receives, in every state |
-| `test_api.py` | 14 | Over real HTTP: login, permissions, readable errors, and a full 3-way swap from request to approval |
+| `test_api.py` | 15 | Over real HTTP: login, permissions, readable errors, a full 3-way swap from request to approval, and pages telling browsers to check for updates |
 
 ## How the tests are set up
 

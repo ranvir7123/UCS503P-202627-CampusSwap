@@ -17,6 +17,19 @@ from app.routers import admin, auth, public, student
 FRONTEND_DIR = Path(__file__).resolve().parents[2] / "frontend" / "public"
 
 
+class _RevalidatingStaticFiles(StaticFiles):
+    """Serve the pages, but make browsers check for a newer copy every time.
+
+    Without this, a browser can keep using an old CSS or JS file after an update.
+    Checking is cheap: an unchanged file gets a short "304 Not Modified" reply.
+    """
+
+    def file_response(self, *args, **kwargs):
+        response = super().file_response(*args, **kwargs)
+        response.headers["Cache-Control"] = "no-cache"
+        return response
+
+
 async def _domain_error(_request: Request, exc: DomainError) -> JSONResponse:
     return JSONResponse(status_code=exc.status, content={"error": exc.code, "message": exc.message})
 
@@ -50,5 +63,5 @@ def create_app(database_url: str | None = None, frontend_dir: Path | None = FRON
         app.include_router(module.router)
     # Pages last, so /api/... is always matched first.
     if frontend_dir is not None and Path(frontend_dir).is_dir():
-        app.mount("/", StaticFiles(directory=frontend_dir, html=True), name="frontend")
+        app.mount("/", _RevalidatingStaticFiles(directory=frontend_dir, html=True), name="frontend")
     return app

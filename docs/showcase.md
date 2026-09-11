@@ -34,7 +34,7 @@ you started it.
 | Server and all rules | `code/backend/app/` |
 | The matching algorithm (Top Trading Cycles) | `code/backend/engine/` |
 | Demo data (4 hostels, 72 rooms, 144 students, 1 warden) | `code/backend/seed.py` |
-| 89 automated tests | `code/backend/tests/` |
+| 90 automated tests | `code/backend/tests/` |
 | 4 UML diagrams: pictures | `docs/diagrams/*.png` and `*.svg` |
 | 4 UML diagrams: source text | `diagrams/*.puml` |
 | Diagrams with explanations | Docs site → **Diagrams** |
@@ -163,7 +163,7 @@ one. If you do, see section 12.
     .venv\Scripts\python -m pytest
     ```
 
-    It should end with **`89 passed`**.
+    It should end with **`90 passed`**.
 
 ### Step 1: the pitch (30 seconds, docs site home page)
 
@@ -227,7 +227,7 @@ approves, and the rooms change."*
 
 - **Diagrams:** docs site → **Diagrams** (Use Case, Class, Sequence, Activity, each with the
   reasons for its relationships).
-- **Tests:** the PowerShell window with **89 passed**, and the GitHub **Actions** page with green ticks.
+- **Tests:** the PowerShell window with **90 passed**, and the GitHub **Actions** page with green ticks.
 - **Code:** show the folders on GitHub: `code/backend/engine` (the algorithm),
   `code/backend/app` (server), `code/frontend` (pages).
 - **API page:** <http://127.0.0.1:8000/docs> lists every endpoint (this page needs internet).
@@ -327,7 +327,7 @@ browser's phone view instead: press `F12` → click the phone icon (**Toggle dev
 cd C:\dev\Swe-Project                                   # go to the project
 .venv\Scripts\python code/backend/run.py                # start the app
 .venv\Scripts\python code/backend/run.py --reset        # start fresh (wipes all changes)
-.venv\Scripts\python -m pytest                          # run all 89 tests
+.venv\Scripts\python -m pytest                          # run all 90 tests
 .venv\Scripts\python diagrams/render.py                 # re-draw the diagrams
 ```
 

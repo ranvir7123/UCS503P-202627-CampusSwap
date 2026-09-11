@@ -97,7 +97,7 @@ confirms). Alt picks one branch (all accepted vs. someone declined / deadline pa
 
 ## Process and testing
 
-**29. How did you test it?** 89 automated tests: the engine on hand-made and random pools,
+**29. How did you test it?** 90 automated tests: the engine on hand-made and random pools,
 every service rule, and full HTTP flows. The pages were checked in a browser by hand.
 
 **30. What is CI and do you use it?** Continuous integration: GitHub Actions runs the tests
