@@ -1,0 +1,31 @@
+@startuml dfd-context
+' CampusSwap - Data flow diagram, Level 0 (context diagram)
+' Gane-Sarson style: square = external entity, rounded box = process.
+top to bottom direction
+skinparam dpi 170
+skinparam defaultFontName "Arial"
+skinparam shadowing false
+skinparam ArrowColor #475569
+skinparam ArrowFontSize 13
+skinparam nodesep 160
+skinparam ranksep 90
+skinparam rectangle {
+  BackgroundColor<<entity>> #E2E8F0
+  BorderColor<<entity>> #475569
+  FontStyle<<entity>> bold
+  BackgroundColor<<process>> #FFF0F2
+  BorderColor<<process>> #FF385C
+  RoundCorner<<process>> 30
+  FontStyle<<process>> bold
+}
+hide stereotype
+
+rectangle "Student" <<entity>> as Student
+rectangle "0\n\nCampusSwap\nhostel room-swap system" <<process>> as System
+rectangle "Hostel Staff\n(Warden)" <<entity>> as Warden
+
+Student --> System : <b>Student to CampusSwap</b>\nemail + password\nranked room list (1-5 rooms)\nwithdraw request\naccept / decline answer
+System --> Student : <b>CampusSwap to Student</b>\neligible rooms + "open to swap" counts\ntracking ID\nrequest status + swap chain\nactivity log
+System --> Warden : <b>CampusSwap to Warden</b>\nall requests + chains\nMatch Yield + round trace\nTTC vs 1:1 comparison\nresults spreadsheet (CSV)
+Warden --> System : <b>Warden to CampusSwap</b>\nemail + password\nrun round (TTC, dry run on/off)\ncompare request\napprove chain
+@enduml

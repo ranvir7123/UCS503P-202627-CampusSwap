@@ -90,7 +90,8 @@ fonts into `public/fonts/`. Commit the rebuilt CSS.
 ```
 
 This sends the text of each `diagrams/*.puml` file to the public PlantUML server and
-saves PNG and SVG images in `docs/diagrams/`.
+saves PNG and SVG images in `docs/diagrams/`. The PNG is also copied into `srs/figures/` for
+the SRS. To redraw only some diagrams, name them: `diagrams/render.py er state-cycle`.
 
 ## Preview this documentation site (optional)
 

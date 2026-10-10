@@ -1,0 +1,38 @@
+@startuml state-request
+' CampusSwap - State diagram: the status of one swap request
+skinparam dpi 170
+skinparam defaultFontName "Arial"
+skinparam shadowing false
+skinparam state {
+  BackgroundColor #FFF0F2
+  BorderColor #FF385C
+  ArrowColor #475569
+  FontStyle bold
+  AttributeFontStyle plain
+}
+skinparam note {
+  BackgroundColor #FFF7EB
+  BorderColor #FFA114
+}
+
+state "open" as Open : in the matching pool
+state "matched" as Matched : placed in a proposed swap chain;\nwaiting for every member to answer
+state "completed" as Completed : warden approved;\nstudent moved to the new seat
+state "withdrawn" as Withdrawn : closed; the student keeps\ntheir current room
+
+[*] --> Open : student submits a valid\nranked list (tracking ID given)
+Open --> Open : round runs but the student\nis not placed in a chain
+Open --> Withdrawn : student withdraws
+Open --> Matched : a saved TTC round places\nthe student in a chain
+Matched --> Open : chain dissolved: another member\ndeclined, or the deadline passed\nafter this student accepted
+Matched --> Withdrawn : chain dissolved: this student\ndeclined, or did not answer\nwithin 48 hours
+Matched --> Completed : warden approves\nthe confirmed chain
+Completed --> [*]
+Withdrawn --> [*]
+
+note bottom of Matched
+  A matched request cannot be withdrawn
+  (error code in_cycle). The student
+  declines the chain instead.
+end note
+@enduml

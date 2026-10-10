@@ -1,10 +1,13 @@
 @startuml class
-' CampusSwap — Class diagram (prototype stage)
+' CampusSwap - Class diagram, part 1: the domain model (app/models.py).
+' Part 2 (class-services.puml) shows the services and the matching engine.
 set separator none
 skinparam dpi 170
 skinparam defaultFontName "Arial"
 skinparam shadowing false
 skinparam classAttributeIconSize 0
+skinparam nodesep 30
+skinparam ranksep 40
 skinparam class {
   BackgroundColor #FFFFFF
   BorderColor #475569
@@ -102,43 +105,6 @@ package "Data model (app/models.py)" {
   }
 }
 
-package "Business rules (app/services)" {
-  class RequestService <<service>> {
-    +submit_request(student, room_ids)
-    +withdraw_request(student)
-  }
-  class MatchingService <<service>> {
-    +run_matching(admin, algorithm, dry_run)
-    +compare_algorithms(admin)
-  }
-  class CycleService <<service>> {
-    +accept(student, cycle_id)
-    +decline(student, cycle_id)
-    +approve(admin, cycle_id)
-    +expire_overdue()
-  }
-}
-
-package "Matching engine (engine/)" {
-  class Participant {
-    id : int
-    seat : int
-    wants : tuple[int]
-    +acceptable()
-  }
-  class MatchResult {
-    cycles : tuple[Cycle]
-    unmatched : tuple[int]
-    assignment : dict[int, int]
-    rounds : tuple[Round]
-  }
-  class TTC <<utility>> {
-    +top_trading_cycles(participants) : MatchResult
-    +pairwise_swaps(participants) : MatchResult
-    +match_yield(result, pool_size) : float
-  }
-}
-
 User <|-- Student
 User <|-- Admin
 LoginSession "0..*" --> "1" User
@@ -160,12 +126,4 @@ CycleMember --> Seat : gives / receives
 SwapRequest ..> RequestStatus
 SwapCycle ..> CycleStatus
 CycleMember ..> Response
-
-RequestService ..> SwapRequest : creates
-MatchingService ..> TTC : uses
-MatchingService ..> MatchRun : saves
-MatchingService ..> CycleService : expire_overdue()
-CycleService ..> SwapCycle : updates
-TTC ..> Participant
-TTC ..> MatchResult : returns
 @enduml

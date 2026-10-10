@@ -38,7 +38,8 @@ Run the tests with `.venv\Scripts\python -m pytest` (or `.venv/bin/python -m pyt
 | `code/backend/app/` | FastAPI server: tables, business rules, HTTP routes |
 | `code/backend/tests/` | pytest tests for the engine and the server |
 | `code/frontend/` | The four pages, their JavaScript and the Tailwind CSS build |
-| `diagrams/` | PlantUML sources for the UML diagrams |
+| `diagrams/` | PlantUML sources for the UML, data flow, architecture and ER diagrams |
+| `srs/` | Software Requirements Specification (LaTeX, ready for Overleaf) and its figures |
 | `docs/` | Documentation site (MkDocs), including the team study guide |
 | `planning/` | Design spec and step-by-step build plans |
 | `journals/` | Weekly journal of each team member |
