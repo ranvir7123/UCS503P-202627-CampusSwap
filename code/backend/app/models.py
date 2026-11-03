@@ -50,6 +50,18 @@ class LoginSession(Base):
     user: Mapped[User] = relationship()
 
 
+class LoginFailure(Base):
+    """One failed sign-in, kept for a short while to slow down password guessing.
+
+    key is "email:<address>" or "ip:<address>".
+    """
+
+    __tablename__ = "login_failures"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    key: Mapped[str] = mapped_column(String(160), index=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime)
+
+
 # ---------------------------------------------------------------- places
 class Hostel(Base):
     __tablename__ = "hostels"

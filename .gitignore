@@ -469,3 +469,4 @@ TSWLatexianTemp*
 # CampusSwap
 *.db
 node_modules/
+.superpowers/

@@ -1,11 +1,13 @@
 """Builds the web app: API routes under /api, the four pages at /."""
 from __future__ import annotations
 
+import os
 from contextlib import asynccontextmanager
 from pathlib import Path
 
 from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
+from fastapi.middleware.httpsredirect import HTTPSRedirectMiddleware
 from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 
@@ -42,7 +44,15 @@ async def _invalid_input(_request: Request, exc: RequestValidationError) -> JSON
                                                   "message": f"{field}: {message}" if field else message})
 
 
-def create_app(database_url: str | None = None, frontend_dir: Path | None = FRONTEND_DIR) -> FastAPI:
+def secure_from_env() -> bool:
+    """CAMPUSSWAP_SECURE=1 when the site is served over HTTPS (any deployment)."""
+    return os.environ.get("CAMPUSSWAP_SECURE", "").strip().lower() in ("1", "true", "yes")
+
+
+def create_app(database_url: str | None = None, frontend_dir: Path | None = FRONTEND_DIR,
+               secure: bool | None = None) -> FastAPI:
+    """secure=True: HTTPS only (plain HTTP is redirected) and the login cookie is marked Secure."""
+    secure = secure_from_env() if secure is None else secure
     engine = make_engine(database_url)
     Base.metadata.create_all(engine)
 
@@ -59,6 +69,15 @@ def create_app(database_url: str | None = None, frontend_dir: Path | None = FRON
         exception_handlers={DomainError: _domain_error, RequestValidationError: _invalid_input},
     )
     app.state.session_factory = make_session_factory(engine)
+    app.state.secure = secure
+    if secure:
+        app.add_middleware(HTTPSRedirectMiddleware)
+
+        @app.middleware("http")
+        async def _hsts(request: Request, call_next):
+            response = await call_next(request)
+            response.headers["Strict-Transport-Security"] = "max-age=31536000"
+            return response
     for module in (auth, public, student, admin):
         app.include_router(module.router)
     # Pages last, so /api/... is always matched first.
