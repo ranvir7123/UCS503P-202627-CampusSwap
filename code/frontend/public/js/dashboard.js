@@ -1,207 +1,187 @@
-// Student dashboard: current room, request status, the swap chain, confirm / decline.
+// Student dashboard: current room, the request and its ranked choices, the swap
+// chain with confirm / decline and a deadline countdown, and recent activity.
 import { api, requireUser } from "./api.js";
 import { fillHeader } from "./nav.js";
 import { renderMatrix, renderRing, renderSteps, roomDetails } from "./ring.js";
-import { $, countdown, formatDateTime, html, ordinal, pad2, raw, setBusy, timeAgo, toast, toastError } from "./ui.js";
+import { $, countdown, formatDateTime, html, ordinal, plural, raw, setBusy, timeAgo, toast, toastError } from "./ui.js";
 
 const root = $("#dash-root");
 let data;
 let clockTimer;
 
+// Activity rows: chip colour and a short plain name for each kind of event.
 const EVENT_TONE = {
-  request_submitted: ["bg-amber-500", "ring-amber-100", "USER_INPUT", "bg-amber-50 text-amber-800"],
-  request_withdrawn: ["bg-slate-400", "ring-slate-100", "WITHDRAWN", "bg-slate-100 text-slate-700"],
-  match_found: ["bg-emerald-500", "ring-emerald-100", "TTC_MATCH", "bg-emerald-50 text-emerald-700"],
-  swap_accepted: ["bg-violet-600", "ring-violet-100", "CONFIRMED", "bg-violet-50 text-violet-700"],
-  cycle_confirmed: ["bg-emerald-500", "ring-emerald-100", "ALL_CONFIRMED", "bg-emerald-50 text-emerald-700"],
-  cycle_dissolved: ["bg-red-500", "ring-red-100", "CANCELLED", "bg-red-50 text-red-700"],
-  swap_approved: ["bg-emerald-600", "ring-emerald-100", "APPROVED", "bg-emerald-100 text-emerald-800"],
+  request_submitted: ["chip-info", "Request sent"],
+  request_withdrawn: ["chip-neutral", "Withdrawn"],
+  match_found: ["chip-warn", "Match found"],
+  swap_accepted: ["chip-ok", "Confirmed"],
+  cycle_confirmed: ["chip-ok", "All confirmed"],
+  cycle_dissolved: ["chip-bad", "Cancelled"],
+  swap_approved: ["chip-ok", "Approved"],
 };
-
-function statusChip() {
-  const { request, cycle } = data;
-  if (!request) return ["No request yet", "bg-slate-100 border-slate-200 text-slate-700", "bg-slate-400"];
-  if (request.status === "completed") return ["Swap approved", "bg-emerald-50 border-emerald-200 text-emerald-700", "bg-emerald-500"];
-  if (cycle?.status === "confirmed") return ["Everyone confirmed", "bg-violet-50 border-violet-200 text-violet-700", "bg-violet-500 animate-ping"];
-  if (cycle) return [`Chain formed (${cycle.length}-way)`, "bg-emerald-50 border-emerald-200 text-emerald-700", "bg-emerald-500 animate-ping"];
-  return ["In the matching pool", "bg-amber-50 border-amber-200 text-amber-800", "bg-amber-500 animate-ping"];
-}
-
-function heroCopy() {
-  const { request, cycle, room } = data;
-  if (!request) return ["Start your room exchange", "Pick up to 5 rooms you'd rather live in. The next matching round looks for chains of swaps where everyone moves somewhere they prefer."];
-  if (request.status === "completed") return ["Your swap is approved 🎉", `The warden approved it. Your room is now ${room.label}.`];
-  if (cycle?.status === "confirmed") return ["Waiting for warden approval", "Everyone in your chain confirmed. The hostel office approves it next, and then the rooms change hands."];
-  if (cycle) return ["We found you a swap", `A ${cycle.length}-way chain gives you your ${ordinal(cycle.received_rank)} choice. Everyone must confirm before ${formatDateTime(cycle.deadline)}.`];
-  return ["You're in the matching pool", "Your ranked list is saved. When the warden runs the next matching round, you'll see your swap chain here."];
-}
-
-function roomCard(title, room, badge, tone) {
-  const tones = {
-    rose: ["border-slate-200/80 hover:border-rose-300", "bg-rose-50", "text-rose-500"],
-    violet: ["border-violet-200/90 hover:border-violet-400", "bg-violet-50", "text-violet-600"],
-  }[tone];
-  return html`
-  <div class="bg-white rounded-3xl p-6 border-2 ${raw(tones[0])} shadow-sm hover:shadow-lg transition-all duration-300 flex flex-col justify-between relative overflow-hidden group min-w-0">
-    <div class="absolute top-0 right-0 w-28 h-28 ${raw(tones[1])} rounded-bl-[48px] pointer-events-none group-hover:scale-110 transition-transform duration-300"></div>
-    <div class="relative z-10">
-      <div class="flex items-center justify-between mb-3 gap-2">
-        <span class="text-[11px] font-extrabold uppercase tracking-wider text-slate-400">${title}</span>
-        ${raw(badge)}
-      </div>
-      <span class="text-xs font-bold uppercase tracking-wider ${raw(tones[2])} font-mono">${room.hostel.name} • Block ${room.block}</span>
-      <h3 class="text-2xl font-extrabold text-slate-900 tracking-tight mt-0.5">Room ${room.number}</h3>
-      <p class="text-xs font-medium text-slate-500">${roomDetails(room)} • Floor ${room.floor}</p>
-      <div class="flex flex-wrap gap-1.5 mt-4">
-        ${room.tags.map((t) => raw(html`<span class="text-[11px] font-semibold bg-slate-100 text-slate-700 px-2.5 py-1 rounded-full border border-slate-200">${t}</span>`))}
-      </div>
-    </div>
-  </div>`;
-}
-
-function promptCard(title, heading, text, href, cta) {
-  return html`
-  <div class="bg-white rounded-3xl p-6 border-2 border-dashed border-violet-200 shadow-sm flex flex-col justify-between gap-4 relative overflow-hidden">
-    <div>
-      <span class="text-[11px] font-extrabold uppercase tracking-wider text-slate-400">${title}</span>
-      <h3 class="text-xl font-extrabold text-slate-900 tracking-tight mt-2">${heading}</h3>
-      <p class="text-xs text-slate-500 mt-1 leading-relaxed">${text}</p>
-    </div>
-    ${href ? raw(html`<a class="self-start inline-flex items-center gap-1.5 px-4 py-2 rounded-full bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold transition-colors" href="${href}"><span class="material-symbols-outlined text-[16px]">explore</span>${cta}</a>`) : ""}
-  </div>`;
-}
 
 // How to describe the step a student is on right now (milestone labels are past tense).
 const NOW_DOING = {
-  submitted: ["Submit your ranked list", "Pick up to 5 rooms and submit them to join the matching pool."],
-  pool: ["Waiting for the next round", "Your list is in the pool. The warden runs matching rounds."],
+  submitted: ["Send your ranked list", "Pick up to 5 rooms or room types and send them to join the matching pool."],
+  pool: ["Waiting for the next matching round", "Your list is in the pool. Hostel staff run the matching rounds."],
   match: ["Match found", "Check your swap chain below."],
   confirmed: ["Waiting for everyone to confirm", "Every member of the chain must confirm."],
   approved: ["Waiting for warden approval", "Everyone confirmed. The hostel office approves next."],
 };
 
+// Icon sizes written out in full so Tailwind keeps the classes.
+const ICON_SIZE = { 14: "text-[14px]", 16: "text-[16px]", 18: "text-[18px]", 20: "text-[20px]" };
+const icon = (name, size = 18, extra = "") =>
+  `<span class="material-symbols-outlined ${ICON_SIZE[size]} ${extra}" aria-hidden="true">${name}</span>`;
+
+function statusChip() {
+  const { request, cycle } = data;
+  if (!request) return ["chip-neutral", "No request yet"];
+  if (request.status === "completed") return ["chip-ok", "Swap approved"];
+  if (cycle?.status === "confirmed") return ["chip-ok", "Everyone confirmed"];
+  if (cycle) return ["chip-warn", "Waiting for answers"];
+  return ["chip-info", "In the matching pool"];
+}
+
+function heroCopy() {
+  const { request, cycle, room } = data;
+  if (!request) return ["No swap request yet", "Pick the rooms you would rather live in and rank them; the next matching round looks for a swap that moves you there."];
+  if (request.status === "completed") return ["Your swap is approved", `The warden approved it. Your room is now ${room ? room.label : "updated"}.`];
+  if (cycle?.status === "confirmed") return ["Waiting for warden approval", "Everyone in your chain confirmed. The hostel office approves it next, and then the rooms change hands."];
+  if (cycle) return ["We found you a swap", `A ${cycle.length}-way chain gives you your ${ordinal(cycle.received_rank)} choice. Everyone must answer before ${formatDateTime(cycle.deadline)}.`];
+  return ["You're in the matching pool", "Your ranked list is saved. When hostel staff run the next matching round, your swap chain shows up here."];
+}
+
+// "1 day 4 h 12 min left to answer"
+function countdownText(iso) {
+  const c = countdown(iso);
+  if (c.done) return "The time to answer has run out";
+  const parts = [];
+  if (c.days) parts.push(plural(c.days, "day"));
+  if (c.days || c.hours) parts.push(`${c.hours} h`);
+  parts.push(`${c.minutes} min`);
+  if (!c.days && !c.hours && !c.minutes) return "Less than a minute left to answer";
+  return `${parts.join(" ")} left to answer`;
+}
+
+function cardTitle(text, right = "") {
+  return `<div class="flex items-center justify-between gap-2 mb-3 min-w-0"><span class="text-xs font-medium faint">${text}</span>${right}</div>`;
+}
+
+function roomBlock(room) {
+  return html`
+    <p class="text-base font-semibold text-ink"><span class="font-mono">${room.number}</span></p>
+    <p class="text-sm muted mt-0.5 break-words">${room.hostel.name}, block ${room.block}</p>
+    <p class="text-xs faint mt-1 break-words">${roomDetails(room)}</p>
+    ${room.tags.length ? raw(html`<div class="flex flex-wrap gap-1.5 mt-3">${room.tags.map((t) => raw(html`<span class="chip-neutral max-w-full truncate">${t}</span>`))}</div>`) : ""}`;
+}
+
+function typeBlock(pref) {
+  return html`
+    <p class="text-base font-semibold text-ink break-words">${pref.label}</p>
+    <div class="mt-2"><span class="chip-neutral">${raw(icon("category", 14))}Any matching room</span></div>`;
+}
+
+function card(inner, extra = "") {
+  return `<div class="card card-pad flex flex-col min-w-0 ${extra}">${inner}</div>`;
+}
+
+function roomCards() {
+  const { room, request, cycle } = data;
+  const current = room
+    ? card(cardTitle(request?.status === "completed" ? "Your new room" : "Current room", html`<span class="chip-neutral">Seat ${room.seat_label}</span>`) + roomBlock(room))
+    : card(cardTitle("Current room") + `<p class="text-base font-semibold text-ink">No room allocated</p><p class="text-sm muted mt-1">You need an allocated room before you can swap. Contact the hostel office.</p>`);
+
+  let target;
+  if (cycle) {
+    target = card(cardTitle("You move into", html`<span class="${raw(cycle.status === "proposed" ? "chip-warn" : "chip-ok")}">Your ${ordinal(cycle.received_rank)} choice</span>`) + roomBlock(cycle.receive_room));
+  } else if (request && request.status !== "completed" && request.preferences.length) {
+    const top = request.preferences[0];
+    target = card(cardTitle("Your top choice", html`<span class="chip-neutral">1 of ${request.preferences.length}</span>`)
+      + (top.kind === "type" || !top.room ? typeBlock(top) : roomBlock(top.room)));
+  } else if (request?.status === "completed") {
+    target = card(cardTitle("Want another change?") + `<p class="text-base font-semibold text-ink">Start a new request</p><p class="text-sm muted mt-1">You can ask for another swap at any time.</p><a class="btn-secondary self-start mt-4" href="/rooms.html">${icon("search")}Find rooms</a>`);
+  } else {
+    target = card(cardTitle("Rooms you want") + `<p class="text-base font-semibold text-ink">Nothing picked yet</p><p class="text-sm muted mt-1">You can rank up to 5 exact rooms or room types, best first, and withdraw any time before a match.</p>`);
+  }
+  return `<div class="grid grid-cols-1 md:grid-cols-3 gap-4">${current}${target}${progressCard()}</div>`;
+}
+
+function bar(pct, tone) {
+  return `<div class="w-full h-2 rounded-full bg-sunken border border-line overflow-hidden" aria-hidden="true"><div class="h-full ${tone} rounded-full" style="width:${Math.max(0, Math.min(100, pct))}%"></div></div>`;
+}
+
 function progressCard() {
   const { cycle, milestones } = data;
-  const done = milestones.filter((m) => m.state === "done").length;
   if (cycle && cycle.status === "proposed") {
     const pct = Math.round((cycle.accepted / cycle.length) * 100);
-    return html`
-    <div class="bg-gradient-to-br from-white via-white to-amber-50/50 rounded-3xl p-6 border-2 border-amber-200 shadow-sm hover:shadow-lg transition-all duration-300 flex flex-col justify-between relative overflow-hidden">
-      <div class="absolute -right-6 -top-6 w-24 h-24 bg-amber-200/40 rounded-full blur-xl pointer-events-none"></div>
-      <div class="relative z-10">
-        <div class="flex items-center justify-between mb-3 gap-2">
-          <span class="text-[11px] font-extrabold uppercase tracking-wider text-slate-400">Confirm by</span>
-          <span class="inline-flex items-center gap-1 text-[11px] font-bold bg-amber-100 text-amber-800 border border-amber-300 px-2.5 py-0.5 rounded-full"><span class="material-symbols-outlined text-[13px]">schedule</span> Confirmed: ${cycle.accepted}/${cycle.length}</span>
-        </div>
-        <div class="flex items-baseline gap-2 mt-3">
-          <div class="px-4 py-2 rounded-2xl bg-slate-900 text-amber-300 font-mono text-2xl sm:text-3xl font-bold tracking-tight shadow-md border border-slate-800 animate-glow-pulse flex items-center gap-1.5" id="countdown">--</div>
-        </div>
-        <p class="text-xs text-slate-500 mt-2 font-medium">Deadline ${formatDateTime(cycle.deadline)}. If anyone hasn't answered by then, the swap is cancelled.</p>
-      </div>
-      <div class="mt-6 flex flex-col gap-2 relative z-10">
-        <div class="flex justify-between text-xs font-mono"><span class="text-slate-500">Members confirmed</span><span class="text-primary font-bold">${pct}%</span></div>
-        <div class="w-full h-3 bg-slate-100 rounded-full overflow-hidden p-0.5 border border-slate-200 relative">
-          <div class="h-full bg-gradient-to-r from-amber-400 via-rose-500 to-violet-600 rounded-full transition-all duration-700 relative overflow-hidden" style="width:${Math.max(pct, 4)}%"><div class="absolute inset-0 shimmer-gradient"></div></div>
-        </div>
-      </div>
-    </div>`;
+    return card(html`
+      ${raw(cardTitle("Time to answer"))}
+      <p class="text-base font-semibold text-brass flex items-center gap-2">${raw(icon("schedule", 20))}<span id="countdown" role="timer">${countdownText(cycle.deadline)}</span></p>
+      <p class="text-xs faint mt-1">Deadline ${formatDateTime(cycle.deadline)}. If anyone hasn't answered by then, the swap is cancelled.</p>
+      <div class="mt-auto pt-5 flex flex-col gap-2">
+        <div class="flex justify-between text-xs"><span class="muted">Members confirmed</span><span class="text-ink font-semibold">${cycle.accepted} of ${cycle.length}</span></div>
+        ${raw(bar(pct, "bg-ok"))}
+      </div>`);
   }
-  const pct = Math.round((done / milestones.length) * 100);
+  const done = milestones.filter((m) => m.state === "done").length;
   const current = milestones.find((m) => m.state === "current");
-  return html`
-  <div class="bg-gradient-to-br from-white via-white to-amber-50/50 rounded-3xl p-6 border-2 border-amber-200 shadow-sm flex flex-col justify-between relative overflow-hidden">
-    <div class="relative z-10">
-      <span class="text-[11px] font-extrabold uppercase tracking-wider text-slate-400">Your progress</span>
-      <h3 class="text-xl font-extrabold text-slate-900 tracking-tight mt-2">${current ? NOW_DOING[current.key][0] : "All steps done"}</h3>
-      <p class="text-xs text-slate-500 mt-1">${current ? NOW_DOING[current.key][1] : "Your exchange is complete."}</p>
-    </div>
-    <div class="mt-6 flex flex-col gap-2">
-      <div class="flex justify-between text-xs font-mono"><span class="text-slate-500">Steps done</span><span class="text-primary font-bold">${done} of ${milestones.length}</span></div>
-      <div class="w-full h-3 bg-slate-100 rounded-full overflow-hidden p-0.5 border border-slate-200">
-        <div class="h-full bg-gradient-to-r from-amber-400 via-rose-500 to-violet-600 rounded-full" style="width:${Math.max(pct, 4)}%"></div>
-      </div>
-    </div>
-  </div>`;
+  return card(html`
+    ${raw(cardTitle("Your progress"))}
+    <p class="text-base font-semibold text-ink">${current ? NOW_DOING[current.key][0] : "All steps done"}</p>
+    <p class="text-sm muted mt-1">${current ? NOW_DOING[current.key][1] : "Your swap is complete."}</p>
+    <div class="mt-auto pt-5 flex flex-col gap-2">
+      <div class="flex justify-between text-xs"><span class="muted">Steps done</span><span class="text-ink font-semibold">${done} of ${milestones.length}</span></div>
+      ${raw(bar((done / milestones.length) * 100, "bg-brass"))}
+    </div>`);
 }
 
 function hero() {
-  const [chip, chipTone, dot] = statusChip();
+  const [chipClass, chipText] = statusChip();
   const [title, text] = heroCopy();
-  const { request, cycle } = data;
-  const withdraw = request?.status === "open"
-    ? `<button class="group flex items-center gap-2 px-4 py-2.5 rounded-full bg-slate-100 hover:bg-slate-200/90 text-slate-700 font-bold text-xs transition-all shadow-2xs border border-slate-200 active:scale-95" id="btn-withdraw" type="button"><span class="material-symbols-outlined text-[18px]">undo</span><span>Withdraw request</span></button>`
-    : "";
+  const { request, last_run: run } = data;
+  const runText = run ? `Last matching round ${timeAgo(run.created_at).replace("Just now", "just now")} · ${run.yield_pct}% of requests matched` : "No matching round has run yet";
+  const actions = !request
+    ? `<a class="btn-primary" href="/rooms.html">${icon("search")}Find rooms to swap into</a>`
+    : (request.status === "open" ? `<button class="btn-secondary" id="btn-withdraw" type="button">${icon("undo")}Withdraw request</button>` : "")
+      + `<a class="btn-secondary" href="/rooms.html">${icon("search")}Find rooms</a>`;
   return html`
-  <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-5 bg-white p-6 sm:p-7 rounded-3xl border border-slate-200/80 shadow-sm relative overflow-hidden">
-    <div class="absolute -right-10 -bottom-10 w-48 h-48 rounded-full bg-rose-50/50 pointer-events-none blur-2xl"></div>
-    <div class="flex flex-col gap-2 relative z-10 min-w-0">
-      <div class="flex items-center gap-2.5 flex-wrap">
-        ${request ? raw(html`<span class="text-[11px] font-bold uppercase tracking-wider bg-slate-900 text-white px-3 py-1 rounded-full shadow-2xs font-mono">${request.tracking_id}</span>`) : ""}
-        <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full border ${raw(chipTone)} text-xs font-bold shadow-2xs"><span class="w-2 h-2 rounded-full ${raw(dot)}"></span>${chip}</span>
-        ${cycle ? raw(html`<span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-50 border border-amber-200 text-amber-800 text-xs font-bold shadow-2xs"><span class="material-symbols-outlined text-[14px] text-amber-500">star</span>Your ${ordinal(cycle.received_rank)} choice</span>`) : ""}
+  <section class="flex flex-col lg:flex-row lg:items-end justify-between gap-4">
+    <div class="min-w-0">
+      <div class="flex items-center gap-2 flex-wrap mb-3">
+        ${request ? raw(html`<span class="chip-neutral font-mono">${request.tracking_id}</span>`) : ""}
+        <span class="${raw(chipClass)}">${chipText}</span>
       </div>
-      <h1 class="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight mt-1">${title}</h1>
-      <p class="text-sm text-slate-600 max-w-2xl">${text}</p>
+      <h1 class="page-title">${title}</h1>
+      <p class="muted mt-1.5 max-w-2xl">${text}</p>
+      <p class="text-xs faint mt-2">${runText}</p>
     </div>
-    <div class="flex items-center gap-3 self-start lg:self-center relative z-10 flex-wrap">
-      ${raw(withdraw)}
-      <a class="flex items-center gap-2 px-4 py-2.5 rounded-full ${raw(request ? "bg-white hover:bg-slate-50 text-slate-800 border border-slate-300" : "bg-primary hover:bg-primary-hover text-white shadow-lg shadow-rose-500/30")} font-bold text-xs transition-all shadow-xs active:scale-95" href="/rooms.html">
-        <span class="material-symbols-outlined text-[18px]">${request ? "explore" : "add_circle"}</span><span>${request ? "Explore rooms" : "Choose rooms to swap into"}</span>
-      </a>
-    </div>
-  </div>`;
-}
-
-function cards() {
-  const { room, request, cycle } = data;
-  const current = room
-    ? roomCard(request?.status === "completed" ? "Your new room" : "Current room", room,
-      `<span class="inline-flex items-center gap-1 text-[11px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200 px-2.5 py-0.5 rounded-full shadow-2xs"><span class="material-symbols-outlined text-[13px]">check_circle</span> Seat ${room.seat_label}</span>`, "rose")
-    : promptCard("Current room", "No room allocated", "You need an allocated room before you can swap. Contact the hostel office.");
-  let target;
-  if (cycle) {
-    target = roomCard("You receive", cycle.receive_room,
-      html`<span class="inline-flex items-center gap-1 text-[11px] font-bold bg-violet-100 text-violet-700 border border-violet-200 px-2.5 py-0.5 rounded-full shadow-2xs"><span class="material-symbols-outlined text-[13px] text-amber-500">star</span> Choice #${cycle.received_rank}</span>`, "violet");
-  } else if (request && request.status !== "completed") {
-    const top = request.preferences[0];
-    target = roomCard("Your top choice", top.room,
-      `<span class="inline-flex items-center gap-1 text-[11px] font-bold bg-violet-100 text-violet-700 border border-violet-200 px-2.5 py-0.5 rounded-full shadow-2xs">Rank #1 of ${request.preferences.length}</span>`, "violet");
-  } else if (request?.status === "completed") {
-    target = promptCard("Want another change?", "Start a new request", "You can ask for another swap any time.", "/rooms.html", "Explore rooms");
-  } else {
-    target = promptCard("Rooms you want", "Pick up to 5 rooms", "Browse rooms in your hostels, rank them best-first and submit. You can withdraw any time before a match.", "/rooms.html", "Explore rooms");
-  }
-  return `<div class="grid grid-cols-1 md:grid-cols-3 gap-6">${current}${target}${progressCard()}</div>`;
+    <div class="flex items-center gap-2 flex-wrap shrink-0">${raw(actions)}</div>
+  </section>`;
 }
 
 function chainSection() {
   const { cycle } = data;
   if (!cycle) return "";
+  const title = cycle.length === 2 ? "Direct swap" : `${cycle.length}-way swap`;
   return html`
-  <section class="bg-white rounded-3xl border border-slate-200 shadow-sm p-6 sm:p-8 flex flex-col gap-6 relative overflow-hidden scroll-mt-24" id="swap-chain">
-    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-      <div>
-        <div class="flex items-center gap-2 flex-wrap">
-          <h2 class="text-xl sm:text-2xl font-extrabold text-slate-900 tracking-tight">${cycle.length === 2 ? "Direct swap" : `${cycle.length}-way swap ring`}</h2>
-          <span class="text-[11px] font-bold bg-violet-100 text-violet-700 border border-violet-200 px-3 py-0.5 rounded-full uppercase tracking-wider flex items-center gap-1"><span class="w-1.5 h-1.5 rounded-full bg-violet-600 animate-ping"></span>All-or-nothing</span>
-        </div>
-        <p class="text-xs sm:text-sm text-slate-500 mt-1">Rooms change hands only if every member confirms and the warden approves. Arrows show where each room goes.</p>
+  <section class="card card-pad flex flex-col gap-4 scroll-mt-20" id="swap-chain" aria-labelledby="chain-title">
+    <div class="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
+      <div class="min-w-0">
+        <h2 class="section-title" id="chain-title">${title}</h2>
+        <p class="text-sm muted mt-1 max-w-2xl">Each arrow points from a student to the room they move into. Rooms change hands only if every member confirms and the warden approves.</p>
       </div>
-      <div class="flex items-center gap-1 bg-slate-100 p-1.5 rounded-full border border-slate-200 self-start sm:self-auto" role="tablist">
-        <button aria-selected="true" class="px-4 py-1.5 rounded-full bg-white text-slate-900 text-xs font-bold shadow-2xs transition-all flex items-center gap-1.5" id="view-graph" role="tab" type="button"><span class="material-symbols-outlined text-[15px] text-primary">hub</span><span>Swap ring</span></button>
-        <button aria-selected="false" class="px-4 py-1.5 rounded-full text-slate-600 hover:text-slate-900 text-xs font-bold transition-all flex items-center gap-1.5" id="view-matrix" role="tab" type="button"><span class="material-symbols-outlined text-[15px]">table_rows</span><span>Compare rooms</span></button>
+      <div class="flex items-center gap-1 p-1 rounded-lg bg-sunken border border-line self-start shrink-0" role="tablist" aria-label="How to show the chain">
+        <button aria-selected="true" aria-controls="ring-canvas" class="h-8 px-3 rounded-md text-sm font-medium flex items-center gap-1.5 transition-colors" id="view-graph" role="tab" type="button">${raw(icon("sync_alt", 16))}Swap ring</button>
+        <button aria-selected="false" aria-controls="matrix-view" class="h-8 px-3 rounded-md text-sm font-medium flex items-center gap-1.5 transition-colors" id="view-matrix" role="tab" type="button">${raw(icon("table_rows", 16))}Compare rooms</button>
       </div>
     </div>
-    <div class="grid gap-2 sm:gap-4 bg-slate-50/80 p-3 sm:p-4 rounded-2xl border border-slate-200/70" id="steps"></div>
-    <div class="relative w-full bg-gradient-to-b from-slate-50/90 to-white rounded-2xl p-6 md:p-0 border border-slate-200/80 shadow-inner overflow-hidden" id="ring-canvas"></div>
-    <div class="hidden overflow-x-auto" id="matrix-view">
-      <table class="w-full text-left text-xs text-slate-700 border-collapse"><thead id="matrix-head"></thead><tbody class="divide-y divide-slate-100" id="matrix-body"></tbody></table>
+    <ul class="flex flex-wrap items-center gap-x-5 gap-y-2" id="steps" aria-label="Answers so far"></ul>
+    <div class="relative w-full rounded-xl bg-sunken border border-line p-3 sm:p-4 lg:p-0" id="ring-canvas" role="tabpanel" aria-labelledby="view-graph"></div>
+    <div class="hidden overflow-x-auto rounded-xl border border-line" id="matrix-view" role="tabpanel" aria-labelledby="view-matrix">
+      <table class="w-full text-sm"><thead class="table-head" id="matrix-head"></thead><tbody id="matrix-body"></tbody></table>
     </div>
-    <div class="self-center bg-white px-5 py-2.5 rounded-full border border-slate-200 shadow-md flex items-center gap-3 text-xs text-slate-700 flex-wrap justify-center">
-      <div class="flex items-center gap-1.5 font-bold text-emerald-600"><span class="material-symbols-outlined text-[16px]">lock</span>${cycle.accepted} of ${cycle.length} confirmed</div>
-      <div class="h-3 w-px bg-slate-200"></div>
-      <span class="font-mono text-[11px] text-slate-500">Cycle #${cycle.id}</span>
-    </div>
+    <p class="text-xs faint">${cycle.accepted} of ${cycle.length} confirmed · <span class="font-mono">Chain #${cycle.id}</span></p>
   </section>`;
 }
 
@@ -211,91 +191,105 @@ function confirmBar() {
   if (cycle.my_response === "accepted") {
     const waiting = cycle.length - cycle.accepted;
     return html`
-    <div class="bg-gradient-to-r from-emerald-50 via-white to-emerald-50/40 p-5 sm:p-6 rounded-3xl border-2 border-emerald-200 flex items-center gap-3.5">
-      <div class="w-12 h-12 rounded-2xl bg-white shadow-sm border border-emerald-200 flex items-center justify-center text-emerald-600 shrink-0"><span class="material-symbols-outlined text-[26px]">task_alt</span></div>
-      <div><h4 class="font-extrabold text-base text-slate-900">You confirmed this swap ✓</h4>
-      <p class="text-xs text-slate-600 mt-1">Waiting for ${waiting} more member${waiting === 1 ? "" : "s"} to confirm.</p></div>
+    <div class="notice-ok" role="status">
+      ${raw(icon("task_alt", 20, "text-ok shrink-0"))}
+      <div><p class="font-semibold text-ink">You confirmed this swap</p>
+      <p class="mt-0.5">${waiting ? `Waiting for ${plural(waiting, "more member")} to confirm.` : "Everyone has confirmed."}</p></div>
     </div>`;
   }
   return html`
-  <div class="bg-gradient-to-r from-rose-50 via-pink-50/50 to-amber-50/40 p-5 sm:p-6 rounded-3xl border-2 border-rose-200 flex flex-col md:flex-row items-start md:items-center justify-between gap-6 transition-all duration-300 hover:border-rose-300">
-    <div class="flex items-start gap-3.5">
-      <div class="w-12 h-12 rounded-2xl bg-white shadow-sm border border-rose-200 flex items-center justify-center text-primary shrink-0"><span class="material-symbols-outlined text-[26px]">assignment_turned_in</span></div>
-      <div class="flex flex-col">
-        <h4 class="font-extrabold text-base text-slate-900 flex items-center gap-2 flex-wrap">Confirm your swap <span class="text-[10px] font-extrabold uppercase px-2 py-0.5 rounded-full bg-rose-100 text-primary">Action needed</span></h4>
-        <p class="text-xs text-slate-600 mt-1 max-w-2xl leading-relaxed">By confirming, you agree to give up ${cycle.give_room.label} and move to ${cycle.receive_room.label} once the warden approves. If anyone declines, the swap is cancelled and the others go back into the pool.</p>
-      </div>
+  <section class="card card-pad border-brass/40 flex flex-col md:flex-row md:items-center justify-between gap-4" aria-labelledby="confirm-title">
+    <div class="min-w-0">
+      <h2 class="section-title" id="confirm-title">Confirm your swap</h2>
+      <p class="text-sm muted mt-1 max-w-2xl break-words">By confirming, you agree to give up ${cycle.give_room.label} and move to ${cycle.receive_room.label} once the warden approves. If anyone declines, the swap is cancelled and the others go back into the pool.</p>
     </div>
-    <div class="flex items-center gap-3 w-full md:w-auto shrink-0 flex-col sm:flex-row">
-      <button class="w-full sm:w-auto px-5 py-3 rounded-full bg-white hover:bg-slate-100 text-slate-800 font-bold text-xs transition-all border border-slate-300 shadow-xs active:scale-95" id="btn-decline" type="button">Decline swap</button>
-      <button class="relative overflow-hidden w-full sm:w-auto px-7 py-3.5 rounded-full bg-gradient-to-r from-[#FF385C] to-rose-600 hover:from-[#E00B41] hover:to-rose-700 text-white font-extrabold text-xs tracking-wide uppercase transition-all duration-200 shadow-lg shadow-rose-500/30 hover:shadow-rose-500/50 hover:scale-[1.02] active:scale-95 flex items-center justify-center gap-2 group" id="btn-accept" type="button">
-        <span class="absolute inset-0 shimmer-gradient pointer-events-none opacity-40 group-hover:opacity-100 transition-opacity"></span>
-        <span class="material-symbols-outlined text-[18px]">verified</span><span>Confirm swap</span>
-      </button>
+    <div class="flex flex-col-reverse sm:flex-row gap-2 shrink-0 w-full sm:w-auto">
+      <button class="btn-danger w-full sm:w-auto" id="btn-decline" type="button">${raw(icon("close"))}Decline swap</button>
+      <button class="btn-primary w-full sm:w-auto" id="btn-accept" type="button">${raw(icon("check"))}Confirm swap</button>
     </div>
-  </div>`;
+  </section>`;
 }
 
-function lowerGrid() {
-  const { events, milestones, room } = data;
-  const stream = events.length
-    ? events.map((e) => {
-      const [dot, ring, tag, tagTone] = EVENT_TONE[e.kind] || ["bg-slate-400", "ring-slate-100", "EVENT", "bg-slate-100 text-slate-700"];
-      return html`
-      <div class="py-3 flex items-start justify-between gap-4 hover:bg-slate-50/70 transition-colors px-2 rounded-xl">
-        <div class="flex items-start gap-3 min-w-0">
-          <div class="mt-1 w-2.5 h-2.5 rounded-full ${raw(dot)} shrink-0 ring-4 ${raw(ring)}"></div>
-          <div class="flex flex-col min-w-0">
-            <span class="text-[10px] font-mono font-bold ${raw(tagTone)} px-1.5 py-0.5 rounded self-start">${tag}</span>
-            <p class="text-xs text-slate-600 mt-1">${e.message}</p>
-          </div>
-        </div>
-        <span class="text-[11px] font-mono text-slate-400 whitespace-nowrap">${timeAgo(e.created_at)}</span>
-      </div>`;
-    }).join("")
-    : `<p class="py-6 text-center text-xs text-slate-400">Nothing yet. Your activity will show up here.</p>`;
+function choicesCard() {
+  const { request, cycle } = data;
+  if (!request) return "";
+  const rows = request.preferences.map((p) => {
+    const matched = cycle && p.rank === cycle.received_rank;
+    const body = p.kind === "type" || !p.room
+      ? html`<p class="text-sm text-ink break-words">${p.label}</p><div class="mt-1.5"><span class="chip-neutral">${raw(icon("category", 14))}Any matching room</span></div>`
+      : html`<p class="text-sm text-ink break-words"><span class="font-mono">${p.room.number}</span> <span class="muted">${p.room.hostel.name}, block ${p.room.block}</span></p><p class="text-xs faint mt-0.5 break-words">${roomDetails(p.room)}</p>`;
+    return html`
+    <li class="flex items-start gap-3 py-3 min-w-0">
+      <span class="w-6 h-6 rounded-md bg-raised border border-line text-xs font-semibold text-ink-2 flex items-center justify-center shrink-0" aria-label="Choice ${p.rank}">${p.rank}</span>
+      <div class="min-w-0 flex-1">${raw(body)}${matched ? raw(html`<div class="mt-1.5"><span class="${raw(cycle.status === "proposed" ? "chip-warn" : "chip-ok")}">Your match</span></div>`) : ""}</div>
+    </li>`;
+  }).join("");
+  return html`
+  <section class="card card-pad" aria-labelledby="choices-title">
+    <div class="flex items-center justify-between gap-2 pb-2 border-b border-line">
+      <h2 class="section-title" id="choices-title">Your choices</h2>
+      <span class="text-xs faint">Best first</span>
+    </div>
+    <ol class="divide-y divide-line/70">${raw(rows)}</ol>
+  </section>`;
+}
+
+function stepsCard() {
+  const { milestones, room } = data;
   const steps = milestones.map((m) => {
-    if (m.state === "done") return html`<div class="milestone-item flex items-start gap-3 p-3 rounded-2xl bg-emerald-50/60 border border-emerald-100"><span class="material-symbols-outlined text-[20px] text-emerald-600">check_circle</span><span class="text-xs font-bold text-slate-600 mt-0.5">${m.label}</span></div>`;
-    if (m.state === "current") return html`<div class="milestone-item flex items-start gap-3 p-3 rounded-2xl bg-rose-50 border-2 border-rose-300 shadow-xs"><span class="material-symbols-outlined text-[20px] text-primary">radio_button_checked</span><div class="flex flex-col"><span class="text-xs font-extrabold text-slate-900">${NOW_DOING[m.key][0]}</span><span class="text-[10px] font-bold text-primary flex items-center gap-1 mt-0.5"><span class="w-1.5 h-1.5 rounded-full bg-primary animate-ping"></span>You are here</span></div></div>`;
-    return html`<div class="milestone-item flex items-start gap-3 p-3 rounded-2xl bg-slate-50 border border-slate-100 opacity-65"><span class="material-symbols-outlined text-[20px] text-slate-400">lock</span><span class="text-xs font-semibold text-slate-700 mt-0.5">${m.label}</span></div>`;
+    if (m.state === "done") return html`<li class="flex items-center gap-3 py-2">${raw(icon("check_circle", 20, "text-ok shrink-0"))}<span class="text-sm muted">${m.label}</span></li>`;
+    if (m.state === "current") return html`<li class="flex items-start gap-3 py-2" aria-current="step">${raw(icon("radio_button_checked", 20, "text-brass shrink-0"))}<div class="flex flex-col"><span class="text-sm font-semibold text-ink">${NOW_DOING[m.key][0]}</span><span class="text-xs text-brass mt-0.5">You are here</span></div></li>`;
+    return html`<li class="flex items-center gap-3 py-2">${raw(icon("radio_button_unchecked", 20, "text-ink-3 shrink-0"))}<span class="text-sm faint">${m.label}</span></li>`;
   }).join("");
   const pending = milestones.filter((m) => m.state !== "done").length;
   return html`
-  <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-    <div class="lg:col-span-2 bg-white rounded-3xl p-6 sm:p-7 border border-slate-200 shadow-sm flex flex-col gap-4">
-      <div class="flex items-center justify-between pb-2 border-b border-slate-100">
-        <div class="flex items-center gap-2"><span class="w-2.5 h-2.5 rounded-full bg-violet-600 animate-pulse"></span><h3 class="font-extrabold text-base text-slate-900">Activity</h3></div>
-        <span class="text-xs font-mono text-slate-400">${events.length} event${events.length === 1 ? "" : "s"}</span>
-      </div>
-      <div class="flex flex-col divide-y divide-slate-100 max-h-96 overflow-y-auto">${raw(stream)}</div>
+  <section class="card card-pad" aria-labelledby="steps-title">
+    <div class="flex items-center justify-between gap-2 pb-2 border-b border-line">
+      <h2 class="section-title" id="steps-title">Your steps</h2>
+      <span class="${raw(pending ? "chip-neutral" : "chip-ok")}">${pending ? `${pending} to go` : "Complete"}</span>
     </div>
-    <div class="bg-white rounded-3xl p-6 sm:p-7 border border-slate-200 shadow-sm flex flex-col justify-between">
-      <div class="flex flex-col gap-4">
-        <div class="flex items-center justify-between pb-2 border-b border-slate-100">
-          <h3 class="font-extrabold text-base text-slate-900">Your steps</h3>
-          <span class="text-[10px] font-bold uppercase bg-amber-100 text-amber-800 px-2.5 py-0.5 rounded-full">${pending ? `${pending} to go` : "Complete"}</span>
-        </div>
-        <div class="flex flex-col gap-2.5">${raw(steps)}</div>
-      </div>
-      ${room ? raw(html`<div class="mt-6 pt-3 border-t border-slate-100 flex items-center gap-3"><div class="w-10 h-10 rounded-2xl bg-violet-100 text-violet-700 flex items-center justify-center shrink-0"><span class="material-symbols-outlined text-[20px]">support_agent</span></div><div class="flex flex-col"><span class="text-xs font-bold text-slate-800">${room.warden}</span><span class="text-[10px] text-slate-500">Warden, ${room.hostel.name}</span></div></div>`) : ""}
+    <ol class="pt-2">${raw(steps)}</ol>
+    ${room ? raw(html`<div class="mt-4 pt-4 border-t border-line flex items-center gap-3 min-w-0">${raw(icon("support_agent", 20, "text-ink-3 shrink-0"))}<div class="flex flex-col min-w-0"><span class="text-sm font-medium text-ink truncate">${room.warden}</span><span class="text-xs faint truncate">Warden, ${room.hostel.name}</span></div></div>`) : ""}
+  </section>`;
+}
+
+function activityCard() {
+  const { events } = data;
+  const stream = events.length
+    ? events.map((e) => {
+      const [chip, tag] = EVENT_TONE[e.kind] || ["chip-neutral", "Update"];
+      return html`
+      <li class="py-3 flex flex-col sm:flex-row sm:items-start gap-1.5 sm:gap-3 min-w-0">
+        <span class="${raw(chip)} self-start sm:w-28 justify-center shrink-0">${tag}</span>
+        <p class="text-sm muted flex-1 min-w-0 break-words">${e.message}</p>
+        <time class="text-xs faint whitespace-nowrap" datetime="${e.created_at}" title="${formatDateTime(e.created_at)}">${timeAgo(e.created_at)}</time>
+      </li>`;
+    }).join("")
+    : `<p class="py-8 text-center text-sm faint">Nothing yet. Your activity will show up here.</p>`;
+  return html`
+  <section class="card card-pad lg:col-span-2 flex flex-col min-w-0" aria-labelledby="activity-title">
+    <div class="flex items-center justify-between gap-2 pb-2 border-b border-line">
+      <h2 class="section-title" id="activity-title">Activity</h2>
+      <span class="text-xs faint">${plural(events.length, "event")}</span>
     </div>
-  </div>`;
+    ${events.length ? raw(html`<ol class="divide-y divide-line/70 max-h-[28rem] overflow-y-auto">${raw(stream)}</ol>`) : raw(stream)}
+  </section>`;
+}
+
+function lowerGrid() {
+  return `<div class="grid grid-cols-1 lg:grid-cols-3 gap-4 items-start">${activityCard()}<div class="flex flex-col gap-4 min-w-0">${choicesCard()}${stepsCard()}</div></div>`;
 }
 
 function tickCountdown() {
   const el = $("#countdown");
   if (!el || !data.cycle) return;
-  const c = countdown(data.cycle.deadline);
-  el.innerHTML = c.done ? "Expired"
-    : `<span>${pad2(c.days)}d</span><span class="text-slate-500">:</span><span>${pad2(c.hours)}h</span><span class="text-slate-500">:</span><span>${pad2(c.minutes)}m</span><span class="text-slate-500">:</span><span class="text-rose-400 w-10 text-right">${pad2(c.seconds)}s</span>`;
+  const text = countdownText(data.cycle.deadline);
+  if (el.textContent !== text) el.textContent = text;
 }
 
 function render() {
-  const run = data.last_run;
-  $("#strip-run").textContent = run
-    ? `Last matching round ${timeAgo(run.created_at)} · ${run.yield_pct}% matched`
-    : "No matching round yet";
-  root.innerHTML = hero() + cards() + chainSection() + confirmBar() + lowerGrid();
+  root.setAttribute("aria-busy", "false");
+  root.innerHTML = hero() + roomCards() + chainSection() + confirmBar() + lowerGrid();
   if (data.cycle) {
     renderSteps($("#steps"), data.cycle);
     renderRing($("#ring-canvas"), data.cycle);
@@ -305,25 +299,26 @@ function render() {
   clearInterval(clockTimer);
   if (data.cycle?.status === "proposed") {
     tickCountdown();
-    clockTimer = setInterval(tickCountdown, 1000);
+    clockTimer = setInterval(tickCountdown, 15000);
   }
   wireActions();
 }
 
 function wireTabs() {
   const graph = $("#view-graph"), matrix = $("#view-matrix");
-  const on = "px-4 py-1.5 rounded-full bg-white text-slate-900 text-xs font-bold shadow-2xs transition-all flex items-center gap-1.5";
-  const off = "px-4 py-1.5 rounded-full text-slate-600 hover:text-slate-900 text-xs font-bold transition-all flex items-center gap-1.5";
+  const on = ["bg-raised", "text-ink"], off = ["text-ink-2", "hover:text-ink"];
   const show = (isGraph) => {
     $("#ring-canvas").hidden = !isGraph;
     $("#matrix-view").classList.toggle("hidden", isGraph);
-    graph.className = isGraph ? on : off;
-    matrix.className = isGraph ? off : on;
-    graph.setAttribute("aria-selected", String(isGraph));
-    matrix.setAttribute("aria-selected", String(!isGraph));
+    for (const [btn, active] of [[graph, isGraph], [matrix, !isGraph]]) {
+      btn.classList.remove(...on, ...off);
+      btn.classList.add(...(active ? on : off));
+      btn.setAttribute("aria-selected", String(active));
+    }
   };
   graph.addEventListener("click", () => show(true));
   matrix.addEventListener("click", () => show(false));
+  show(true);
 }
 
 async function act(button, label, path, success) {
@@ -342,17 +337,22 @@ async function act(button, label, path, success) {
 function wireActions() {
   const { cycle } = data;
   $("#btn-withdraw")?.addEventListener("click", (e) => {
-    if (!confirm("Withdraw your request? You can submit a new one later.")) return;
+    if (!confirm("Withdraw your request? You can send a new one later.")) return;
     act(e.currentTarget, "Withdrawing…", "/api/requests/current", ["Request withdrawn", "You're no longer in the matching pool.", { icon: "undo" }]);
   });
   $("#btn-accept")?.addEventListener("click", (e) =>
     act(e.currentTarget, "Confirming…", `/api/cycles/${cycle.id}/accept`, (result) => (result.status === "confirmed"
-      ? ["Everyone has confirmed 🎉", "The warden approves next. Then the rooms change hands.", { icon: "verified" }]
+      ? ["Everyone has confirmed", "The warden approves next. Then the rooms change hands.", { icon: "verified" }]
       : ["Swap confirmed", "Waiting for the other members to confirm.", { icon: "verified" }])));
   $("#btn-decline")?.addEventListener("click", (e) => {
     if (!confirm("Decline this swap? The chain will be cancelled for everyone and your request will close.")) return;
     act(e.currentTarget, "Declining…", `/api/cycles/${cycle.id}/decline`, ["Swap declined", "The chain was cancelled. Your request is closed.", { icon: "block", tone: "error" }]);
   });
+}
+
+function showSkeleton() {
+  root.setAttribute("aria-busy", "true");
+  root.innerHTML = $("#dash-skeleton").innerHTML;
 }
 
 async function load() {
@@ -361,8 +361,17 @@ async function load() {
     render();
   } catch (error) {
     if (error.status === 401) return location.replace("/");
-    root.innerHTML = html`<div class="bg-white rounded-3xl border border-red-200 p-8 text-center"><span class="material-symbols-outlined text-red-500 text-[32px]">error</span><h2 class="font-extrabold text-slate-900 mt-2">Couldn't load your dashboard</h2><p class="text-sm text-slate-500 mt-1">${error.message}</p><button class="mt-4 px-4 py-2 rounded-full bg-slate-900 text-white text-xs font-bold" id="btn-retry" type="button">Try again</button></div>`;
-    $("#btn-retry").addEventListener("click", load);
+    clearInterval(clockTimer);
+    root.setAttribute("aria-busy", "false");
+    root.innerHTML = html`
+    <div class="notice-bad" role="alert">
+      ${raw(icon("error", 20, "text-bad shrink-0"))}
+      <div class="flex flex-col gap-3 min-w-0">
+        <div><p class="font-semibold text-ink">Couldn't load your swap</p><p class="mt-0.5 break-words">${error.message || "The server did not answer."} Check your connection and try again.</p></div>
+        <button class="btn-secondary btn-sm self-start" id="btn-retry" type="button">${raw(icon("refresh", 16))}Try again</button>
+      </div>
+    </div>`;
+    $("#btn-retry").addEventListener("click", () => { showSkeleton(); load(); });
   }
 }
 

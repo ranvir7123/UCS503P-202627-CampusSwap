@@ -2,243 +2,191 @@
 <html lang="en"><head>
 <meta charset="utf-8"/>
 <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
-<title>CampusSwap · Admin Engine Room</title>
+<title>CampusSwap · Hostel staff</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 32 32%27%3E%3Crect width=%2732%27 height=%2732%27 rx=%277%27 fill=%27%23D4B06A%27/%3E%3Cpath d=%27M9 12h13l-3-3M23 20H10l3 3%27 stroke=%27%231A1408%27 stroke-width=%272.5%27 fill=%27none%27 stroke-linecap=%27round%27 stroke-linejoin=%27round%27/%3E%3C/svg%3E"/>
 <link rel="stylesheet" href="/assets/admin.css"/>
-<style>
-    @layer base {
-      html, body { margin: 0; padding: 0; }
-      body { overscroll-behavior: none; }
-    }
-    ::-webkit-scrollbar { display: none; }
-    @keyframes shimmer { 0% { transform: translateX(-100%); } 100% { transform: translateX(200%); } }
-    .shimmer-effect { position: relative; overflow: hidden; }
-    .shimmer-effect::after { content: ''; position: absolute; top: 0; left: 0; width: 60%; height: 100%; background: linear-gradient(90deg, transparent, rgba(255,255,255,0.4), transparent); animation: shimmer 2.4s infinite; }
-    @keyframes pulse-ring {
-      0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(255, 56, 92, 0.45); }
-      70% { transform: scale(1.02); box-shadow: 0 0 0 14px rgba(255, 56, 92, 0); }
-      100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(255, 56, 92, 0); }
-    }
-    .pulse-coral { animation: pulse-ring 2.2s infinite cubic-bezier(0.4, 0, 0.6, 1); }
-    @keyframes radar-ripple { 0% { transform: scale(0.8); opacity: 0.9; } 100% { transform: scale(2.6); opacity: 0; } }
-    .radar-pulse::before { content: ''; position: absolute; width: 100%; height: 100%; border-radius: 50%; background-color: inherit; animation: radar-ripple 1.8s infinite cubic-bezier(0, 0.2, 0.8, 1); z-index: 0; }
-    @keyframes log-slide-in { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
-    .log-item-new { animation: log-slide-in 0.35s cubic-bezier(0.16, 1, 0.3, 1) both; }
-    @keyframes cursor-blink { 0%, 100% { opacity: 1; } 50% { opacity: 0; } }
-    .terminal-cursor { display: inline-block; width: 7px; height: 13px; background-color: #34d399; animation: cursor-blink 1s infinite; vertical-align: middle; }
-    @keyframes float-subtle { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-3px); } }
-    .float-badge { animation: float-subtle 3s ease-in-out infinite; }
-    .expand-content { max-height: 0; opacity: 0; overflow: hidden; transition: max-height 0.35s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.25s ease; }
-    .expand-content.open { max-height: 640px; opacity: 1; }
-    .rotate-chevron { transition: transform 0.25s ease; }
-    .rotate-chevron.open { transform: rotate(180deg); }
-    .metric-card.active-filter { box-shadow: 0 10px 25px -5px rgba(255, 56, 92, 0.15), 0 8px 10px -6px rgba(255, 56, 92, 0.1); border-color: #ba0036; transform: translateY(-4px); }
-  </style>
 </head>
-<body class="bg-surface-canvas font-sans text-slate-800 antialiased selection:bg-coral/20 selection:text-coral-hover relative overflow-x-hidden">
-<!-- Run settings modal -->
-<div aria-hidden="true" class="fixed inset-0 bg-slate-900/60 backdrop-blur-xs z-[100] flex items-center justify-center p-4 transition-all duration-300 opacity-0 pointer-events-none" id="settings-modal">
-<div aria-labelledby="settings-title" aria-modal="true" class="bg-white rounded-3xl max-w-lg w-full p-6 shadow-2xl border border-slate-200 transform scale-95 transition-all duration-300 relative overflow-hidden" id="settings-card" role="dialog">
-<div class="absolute top-0 left-0 right-0 h-1.5 bg-gradient-to-r from-coral via-amber to-teal"></div>
-<div class="flex items-center justify-between pb-4 border-b border-slate-100">
-<div class="flex items-center gap-2.5">
-<div class="w-9 h-9 rounded-xl bg-amber-subtle text-amber-warm flex items-center justify-center border border-amber-border"><span class="material-symbols-outlined text-[20px]">tune</span></div>
-<div>
-<h3 class="font-bold text-slate-900 text-base" id="settings-title">Matching round settings</h3>
-<p class="text-xs text-slate-500">What happens when you press Run</p>
-</div>
-</div>
-<button aria-label="Close" class="p-1.5 rounded-lg hover:bg-slate-100 text-slate-400 hover:text-slate-700 transition-colors" data-close-modal="" type="button"><span class="material-symbols-outlined text-[20px]">close</span></button>
-</div>
-<div class="py-4 space-y-4">
-<div class="flex items-center justify-between p-3 rounded-2xl bg-slate-50 border border-slate-100">
-<div class="flex flex-col">
-<span class="text-xs font-bold text-slate-900">Dry run (preview only)</span>
-<span class="text-[11px] text-slate-500">Runs TTC and shows the result, but saves no swaps and tells no students.</span>
-</div>
-<label class="relative inline-flex items-center cursor-pointer ml-3 shrink-0">
-<input class="sr-only peer" id="toggle-dry" type="checkbox"/>
-<div class="w-11 h-6 bg-slate-200 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-amber peer-focus-visible:ring-2 peer-focus-visible:ring-coral/40"></div>
-</label>
-</div>
-<div class="p-3 rounded-2xl bg-slate-50 border border-slate-100 flex flex-col gap-1.5">
-<span class="text-xs font-bold text-slate-900">Confirmation window</span>
-<span class="text-[11px] text-slate-500">Every student in a chain has <strong>48 hours</strong> to confirm. If anyone declines or doesn't answer, the chain is cancelled and the others return to the pool.</span>
-</div>
-<div class="p-3 rounded-2xl bg-slate-50 border border-slate-100 flex flex-col gap-1.5">
-<span class="text-xs font-bold text-slate-900">Hostel rules</span>
-<span class="text-[11px] text-slate-500">Students can only rank rooms in hostels they're allowed to live in. This is checked when they submit, so the engine never proposes a disallowed move.</span>
-</div>
-</div>
-<div class="pt-3 border-t border-slate-100 flex items-center justify-end gap-2">
-<button class="px-4 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold transition-all" data-close-modal="" type="button">Cancel</button>
-<button class="px-5 py-2 rounded-xl bg-coral hover:bg-coral-hover text-white text-xs font-bold shadow-md shadow-coral/25 transition-all flex items-center gap-1.5" id="btn-save-settings" type="button"><span class="material-symbols-outlined text-[16px]">save</span><span>Save settings</span></button>
-</div>
-</div>
-</div>
-<!-- Header -->
-<header class="fixed top-0 left-0 right-0 z-50 bg-white/90 backdrop-blur-md border-b border-slate-200/80 shadow-xs">
-<div class="h-14 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex items-center justify-between gap-4">
-<div class="flex items-center gap-6 min-w-0">
-<a class="flex items-center gap-3 group min-w-0" href="/admin.html">
-<div class="w-8 h-8 shrink-0 rounded-xl bg-gradient-to-tr from-coral to-rose-400 flex items-center justify-center shadow-md shadow-coral/25 transition-transform duration-300 group-hover:rotate-180"><span class="material-symbols-outlined text-white text-[18px]">swap_horizontal_circle</span></div>
-<span class="font-bold text-slate-900 text-[17px] tracking-tight">CampusSwap</span>
-<span class="hidden sm:flex font-mono text-[11px] font-bold uppercase px-2 py-0.5 bg-coral-subtle text-coral border border-coral-border rounded-full items-center gap-1 whitespace-nowrap"><span class="w-1.5 h-1.5 rounded-full bg-coral animate-ping"></span>Hostel staff</span>
-</a>
-<nav class="hidden lg:flex items-center gap-1">
-<a aria-current="page" class="px-3 py-1.5 rounded-lg transition-colors bg-coral-subtle text-coral font-bold text-sm border border-coral-border flex items-center gap-1.5 shadow-2xs" href="/admin.html"><span class="material-symbols-outlined text-[16px]">tune</span>Engine room</a>
-<a class="px-3 py-1.5 rounded-lg text-slate-600 hover:text-slate-900 hover:bg-slate-100 transition-colors font-medium text-sm" href="/docs" target="_blank">API reference</a>
-</nav>
-</div>
-<div class="flex items-center gap-3">
-<label class="hidden sm:flex items-center w-56 h-9 px-3 rounded-lg bg-slate-50 border border-slate-200 text-slate-400 hover:border-slate-300 focus-within:border-coral focus-within:ring-2 focus-within:ring-coral/20 transition-all text-xs gap-1.5">
-<span class="material-symbols-outlined text-[16px] text-slate-400">search</span>
-<input aria-label="Search requests" class="border-0 bg-transparent p-0 text-xs text-slate-800 placeholder:text-slate-400 focus:ring-0 w-full" id="header-search" placeholder="Search student, room, request…" type="search"/>
-</label>
-<div class="h-4 w-px bg-slate-200 hidden sm:block"></div>
-<div class="flex items-center gap-2.5 pl-1 py-1 pr-2">
-<div class="relative">
-<div class="w-8 h-8 rounded-full bg-gradient-to-tr from-coral to-rose-400 text-white font-mono text-[11px] font-bold flex items-center justify-center ring-2 ring-coral/30" data-user-initials=""></div>
-<span class="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-emerald ring-2 ring-white"></span>
-</div>
-<div class="hidden md:flex flex-col items-start leading-none">
-<span class="text-xs font-bold text-slate-900" data-user-name="">…</span>
-<span class="font-mono text-[10px] text-emerald-600 font-semibold flex items-center gap-0.5 mt-0.5"><span class="material-symbols-outlined text-[11px]">verified</span><span data-user-sub=""></span></span>
-</div>
-</div>
-<button class="flex items-center justify-center w-8 h-8 rounded-lg text-slate-600 hover:text-coral hover:bg-coral-subtle transition-colors" data-logout="" title="Sign out" type="button"><span class="material-symbols-outlined text-[20px]">logout</span></button>
-</div>
-</div>
-</header>
-<main class="w-full pt-14 min-h-[calc(100vh-56px)] bg-[#FAF9F7]">
-<div class="flex flex-col w-full">
-<!-- Control bar -->
-<div class="w-full bg-white border-b border-slate-200 px-4 sm:px-6 lg:px-8 py-5 shadow-xs relative">
-<div class="absolute top-0 left-0 right-0 h-1 bg-transparent overflow-hidden"><div class="h-full bg-gradient-to-r from-coral via-rose-400 to-teal w-0 transition-all duration-300 ease-out" id="solver-progress-bar"></div></div>
-<div class="max-w-7xl mx-auto flex flex-col lg:flex-row lg:items-center justify-between gap-4">
-<div class="flex flex-col gap-1.5 min-w-0">
-<div class="flex items-center gap-2.5 flex-wrap">
-<span class="font-mono text-[11px] uppercase px-2.5 py-0.5 bg-gradient-to-r from-coral-subtle to-rose-100 text-coral font-bold rounded-md border border-coral-border shadow-2xs">Engine control room</span>
-<div class="flex items-center gap-2 px-2 py-0.5 bg-emerald-subtle border border-emerald-border rounded-md">
-<div class="relative flex items-center justify-center w-2.5 h-2.5"><span class="w-2.5 h-2.5 rounded-full bg-emerald radar-pulse relative"></span></div>
-<span class="font-mono text-[11px] text-emerald-700 font-bold">TOP TRADING CYCLES • READY</span>
-</div>
-<span class="text-xs font-mono text-slate-400" id="bar-meta">Loading…</span>
-</div>
-<h1 class="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight flex items-center gap-2 flex-wrap">
-              Hostel Room Swap Engine
-              <span class="inline-flex items-center text-xs font-medium text-teal px-2 py-0.5 bg-teal-subtle border border-teal-border rounded-full float-badge">Multi-way loops enabled</span>
-</h1>
-<p class="text-xs sm:text-sm text-slate-500 flex items-center gap-1.5 flex-wrap">
-<span class="material-symbols-outlined text-[15px] text-coral animate-bounce">bolt</span>
-<span>Last saved round: <strong class="text-slate-800 font-semibold" id="last-run-time">—</strong></span>
-<span class="text-slate-300">•</span>
-<span class="text-slate-600">Each student points at the owner of their best available room; closed loops become swaps.</span>
-</p>
-</div>
-<div class="flex items-center gap-2.5 flex-wrap">
-<button aria-pressed="false" class="px-3.5 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold text-xs transition-all duration-300 flex items-center gap-2 border border-slate-200 shadow-2xs select-none active:scale-95" id="btn-toggle-dry" title="Dry run: preview a round without saving it" type="button">
-<div class="w-4 h-4 rounded-full border border-slate-300 bg-white flex items-center justify-center transition-all duration-300" id="dry-ring"><span class="w-2 h-2 rounded-full bg-slate-400 transition-all duration-300" id="dry-dot"></span></div>
-<span id="dry-label">Dry run: OFF</span>
-</button>
-<a class="px-3 py-2 rounded-xl bg-white hover:bg-slate-50 hover:border-slate-300 text-slate-700 font-semibold text-xs transition-all flex items-center gap-1.5 border border-slate-200 shadow-2xs active:scale-95" download="" href="/api/admin/export.csv" id="btn-export"><span class="material-symbols-outlined text-[16px] text-slate-500">file_download</span><span>Export CSV</span></a>
-<button class="px-3 py-2 rounded-xl bg-white hover:bg-slate-50 hover:border-slate-300 text-slate-700 font-semibold text-xs transition-all flex items-center gap-1.5 border border-slate-200 shadow-2xs active:scale-95" id="btn-open-settings" type="button"><span class="material-symbols-outlined text-[16px] text-slate-500">tune</span><span>Settings</span></button>
-<button class="shimmer-effect pulse-coral px-5 py-2.5 rounded-xl bg-gradient-to-r from-coral via-rose-500 to-coral-hover text-white font-bold text-sm shadow-lg shadow-coral/30 hover:shadow-xl hover:shadow-coral/40 hover:-translate-y-0.5 active:translate-y-0 active:scale-95 transition-all duration-200 flex items-center gap-2 group relative overflow-hidden disabled:opacity-80 disabled:pointer-events-none" id="btn-run" type="button">
-<span class="material-symbols-outlined text-[20px] transition-transform duration-500 group-hover:scale-125 group-hover:rotate-180" id="run-icon">play_arrow</span>
-<span class="tracking-tight" id="run-text">Run TTC Matching Round</span>
-</button>
-</div>
-</div>
-</div>
-<div class="max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-8 py-6 flex flex-col gap-6">
-<!-- KPI cards -->
-<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4" id="kpi-grid">
-<div class="skeleton h-40"></div><div class="skeleton h-40"></div><div class="skeleton h-40"></div><div class="skeleton h-40"></div>
-</div>
-<!-- Engine banner -->
-<div class="bg-gradient-to-r from-white via-slate-50 to-white rounded-2xl p-4 border border-slate-200 shadow-xs flex flex-col md:flex-row items-center justify-between gap-4">
-<div class="flex items-center gap-3 w-full md:w-auto">
-<div class="w-10 h-10 rounded-xl bg-coral-subtle text-coral flex items-center justify-center border border-coral-border shrink-0"><span class="material-symbols-outlined text-[22px]">memory</span></div>
-<div>
-<div class="flex items-center gap-2 flex-wrap">
-<h2 class="font-bold text-slate-900 text-sm sm:text-base">Top Trading Cycles engine</h2>
-<span class="font-mono text-[10px] uppercase font-bold px-2 py-0.5 bg-emerald-subtle text-emerald-700 border border-emerald-border rounded-md">Nobody ends up worse off</span>
-</div>
-<p class="text-xs text-slate-500 mt-0.5">Guarantees from the proposal: Pareto efficient, strategy-proof (honest ranking is always best), core-stable.</p>
-</div>
-</div>
-<div class="flex items-center gap-6 w-full md:w-auto justify-between md:justify-end border-t md:border-t-0 pt-2 md:pt-0 border-slate-200">
-<div class="flex flex-col md:items-end">
-<span class="font-mono text-[10px] uppercase tracking-wider text-slate-400 font-bold">Hostel rule</span>
-<span class="text-xs font-bold text-slate-700">Same-gender hostels only</span>
-</div>
-<div class="h-8 w-px bg-slate-200 hidden md:block"></div>
-<div class="flex flex-col md:items-end">
-<span class="font-mono text-[10px] uppercase tracking-wider text-amber-warm font-bold">Needs your action</span>
-<button class="text-xs font-bold text-amber-700 bg-amber-subtle hover:bg-amber-100 px-2 py-0.5 rounded border border-amber-border transition-colors flex items-center gap-1" id="btn-awaiting" type="button"><span class="w-1.5 h-1.5 rounded-full bg-amber animate-ping"></span><span id="awaiting-text">—</span></button>
-</div>
-</div>
-</div>
-<!-- Requests table -->
-<div class="bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden flex flex-col">
-<div class="p-4 sm:p-5 bg-slate-50/70 border-b border-slate-200 flex flex-col lg:flex-row lg:items-center justify-between gap-4">
-<div class="flex items-center gap-1.5 overflow-x-auto w-full lg:w-auto pb-1 lg:pb-0" id="table-tabs"></div>
-<div class="flex items-center gap-2.5 w-full lg:w-auto justify-end">
-<div class="relative flex-1 lg:flex-initial">
-<input aria-label="Search requests" class="w-full lg:w-72 h-9 pl-9 pr-3 rounded-xl bg-white border border-slate-200 text-xs text-slate-800 placeholder:text-slate-400 focus:outline-none focus:border-coral focus:ring-2 focus:ring-coral/20 shadow-2xs transition-all" id="table-search" placeholder="Search student, hostel, room, request ID…" type="search"/>
-<span class="material-symbols-outlined text-[16px] text-slate-400 absolute left-3 top-2.5 pointer-events-none">search</span>
-</div>
-</div>
-</div>
-<div class="overflow-x-auto w-full">
-<table class="w-full text-left border-collapse min-w-[860px]">
-<thead>
-<tr class="bg-slate-50 border-b border-slate-200 text-slate-500 font-mono text-[11px] uppercase tracking-wider select-none">
-<th class="py-3 px-4 font-bold">Request ID</th>
-<th class="py-3 px-4 font-bold">Student</th>
-<th class="py-3 px-4 font-bold">Room route</th>
-<th class="py-3 px-4 font-bold">Chain</th>
-<th class="py-3 px-4 font-bold">Choice received</th>
-<th class="py-3 px-4 font-bold">Status</th>
-<th class="py-3 px-4 font-bold text-right">Action</th>
-</tr>
-</thead>
-<tbody class="divide-y divide-slate-100 text-xs" id="table-body"><tr><td class="p-6" colspan="7"><div class="skeleton h-24 w-full"></div></td></tr></tbody>
-</table>
-</div>
-<div class="p-4 bg-white border-t border-slate-100 flex flex-col sm:flex-row items-center justify-between gap-3" id="table-footer"></div>
-</div>
-<!-- Trace + comparison -->
-<div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-<div class="lg:col-span-2 bg-white rounded-2xl p-5 border border-slate-200 shadow-xs flex flex-col gap-3 min-w-0">
-<div class="flex items-center justify-between gap-2 flex-wrap">
-<div class="flex items-center gap-2">
-<div class="relative flex items-center justify-center w-3 h-3"><span class="w-3 h-3 rounded-full bg-emerald absolute animate-ping opacity-75"></span><span class="w-2.5 h-2.5 rounded-full bg-emerald relative"></span></div>
-<h3 class="font-bold text-slate-900 text-sm sm:text-base flex items-center gap-1.5"><span class="material-symbols-outlined text-coral text-[18px]">terminal</span>Engine trace: step by step</h3>
-</div>
-<div class="flex items-center gap-2">
-<button class="text-[11px] font-mono text-slate-400 hover:text-slate-700 transition-colors" id="btn-clear-trace" type="button">Clear view</button>
-<span class="font-mono text-[10px] uppercase font-semibold px-2 py-0.5 rounded-md bg-slate-100 text-slate-600 border border-slate-200" id="trace-chip">No run yet</span>
-</div>
-</div>
-<div aria-live="polite" class="bg-slate-950 text-slate-200 p-4 rounded-xl font-mono text-xs overflow-auto space-y-1.5 max-h-72 leading-relaxed border border-slate-800 shadow-inner" id="terminal"></div>
-</div>
-<div class="bg-white rounded-2xl p-5 border border-slate-200 shadow-xs flex flex-col justify-between gap-4">
-<div>
-<h3 class="font-bold text-slate-900 text-sm sm:text-base flex items-center gap-2"><span class="material-symbols-outlined text-amber-warm text-[20px]">compare_arrows</span><span>TTC vs 1:1 swaps only</span></h3>
-<p class="text-xs text-slate-500 mt-1">The proposal's evaluation: how many more students multi-way chains match than direct swaps, on the same pool.</p>
-<div class="mt-4 space-y-3" id="comparison"></div>
-</div>
-<button class="w-full py-2 rounded-xl bg-slate-100 hover:bg-coral hover:text-white text-slate-700 font-bold text-xs transition-all duration-200 text-center border border-slate-200 hover:border-coral shadow-2xs active:scale-95 disabled:opacity-60" id="btn-compare" type="button">Compare on the current pool</button>
-</div>
-</div>
-</div>
-</div>
+<body>
+<header class="topbar"><div class="topbar-inner">
+  <a class="brand" href="/"><span class="brand-mark"><span class="material-symbols-outlined text-[18px]" aria-hidden="true">sync_alt</span></span>CampusSwap</a>
+  <nav class="hidden sm:flex items-center gap-1" aria-label="Pages">
+    <a class="nav-link" href="#rooms" data-view-link="rooms">Room swaps</a>
+    <a class="nav-link" href="#slots" data-view-link="slots">Lecture slots</a>
+    <a class="nav-link" href="/docs" target="_blank" rel="noopener">API reference<span class="material-symbols-outlined text-[16px]" aria-hidden="true">open_in_new</span><span class="sr-only">(opens in a new tab)</span></a>
+  </nav>
+  <div class="ml-auto flex items-center gap-3">
+    <div class="avatar" data-user-initials></div>
+    <div class="hidden md:flex flex-col leading-tight"><span class="text-sm font-semibold" data-user-name>…</span><span class="text-xs faint" data-user-sub></span></div>
+    <button class="icon-btn" data-logout type="button" aria-label="Sign out" title="Sign out"><span class="material-symbols-outlined text-[20px]" aria-hidden="true">logout</span></button>
+  </div>
+</div></header>
+
+<main class="max-w-6xl mx-auto px-4 sm:px-6 py-6 sm:py-8 flex flex-col gap-8">
+  <!-- Phone only: the top bar hides its links below 640px, so the two views are switched here. -->
+  <nav class="sm:hidden grid grid-cols-2 gap-1 p-1 rounded-lg bg-sunken border border-line" aria-label="Views">
+    <a class="nav-link justify-center" href="#rooms" data-view-link="rooms">Room swaps</a>
+    <a class="nav-link justify-center" href="#slots" data-view-link="slots">Lecture slots</a>
+  </nav>
+
+  <!-- ============================================================ Room swaps -->
+  <section class="flex flex-col gap-6" data-view="rooms" aria-labelledby="rooms-title">
+    <div class="flex flex-col lg:flex-row lg:items-end justify-between gap-4">
+      <div class="min-w-0">
+        <h1 class="page-title" id="rooms-title">Room swaps</h1>
+        <p class="muted mt-1" id="rooms-meta"><span class="skeleton inline-block h-4 w-64 align-middle rounded-md"></span></p>
+      </div>
+      <div class="flex flex-col gap-2 lg:items-end">
+        <div class="flex flex-wrap items-center gap-2">
+          <a class="btn-secondary" href="/api/admin/export.csv" download><span class="material-symbols-outlined text-[18px]" aria-hidden="true">download</span>Export CSV</a>
+          <a class="btn-secondary" href="/api/admin/events.csv" download><span class="material-symbols-outlined text-[18px]" aria-hidden="true">history</span>Download event log</a>
+          <label class="inline-flex items-center gap-2 h-9 px-3 rounded-lg border border-line bg-panel text-sm text-ink-2 cursor-pointer hover:border-line-strong" for="rooms-dry">
+            <input class="check" id="rooms-dry" type="checkbox" aria-describedby="rooms-dry-hint"/>Dry run
+          </label>
+          <button class="btn-primary" id="btn-run" type="button"><span class="material-symbols-outlined text-[18px]" aria-hidden="true">play_arrow</span><span data-run-label>Run matching round</span></button>
+        </div>
+        <p class="text-xs faint" id="rooms-dry-hint">A dry run shows what a round would do. It saves no swaps and emails nobody.</p>
+      </div>
+    </div>
+
+    <div id="rooms-awaiting" aria-live="polite"></div>
+
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4" id="kpi-grid" aria-live="polite">
+      <div class="skeleton h-[148px]"></div><div class="skeleton h-[148px]"></div><div class="skeleton h-[148px]"></div><div class="skeleton h-[148px]"></div>
+    </div>
+
+    <div class="card overflow-hidden">
+      <div class="p-4 border-b border-line flex flex-col lg:flex-row lg:items-center justify-between gap-3">
+        <div class="flex items-center gap-1 overflow-x-auto -mx-1 px-1" id="rooms-tabs" role="group" aria-label="Show requests"></div>
+        <div class="relative w-full lg:w-72 shrink-0">
+          <label class="sr-only" for="rooms-search">Search room requests</label>
+          <span class="material-symbols-outlined text-[18px] text-ink-3 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" aria-hidden="true">search</span>
+          <input class="field pl-9" id="rooms-search" placeholder="Name, roll number, room or ID" type="search" autocomplete="off"/>
+        </div>
+      </div>
+      <div id="rooms-table-notice"></div>
+      <div class="overflow-x-auto">
+        <table class="w-full min-w-[880px] text-sm">
+          <thead class="table-head"><tr class="whitespace-nowrap">
+            <th scope="col">Request</th><th scope="col">Student</th><th scope="col">Room move</th><th scope="col">Chain</th><th scope="col">Choice received</th><th scope="col">Status</th><th scope="col" class="text-right">Action</th>
+          </tr></thead>
+          <tbody id="rooms-body" aria-live="polite"><tr><td class="p-4" colspan="7"><div class="flex flex-col gap-3"><div class="skeleton h-10"></div><div class="skeleton h-10"></div><div class="skeleton h-10"></div><div class="skeleton h-10"></div></div></td></tr></tbody>
+        </table>
+      </div>
+      <div class="px-4 py-3 border-t border-line flex flex-col sm:flex-row sm:items-center justify-between gap-3" id="rooms-footer"></div>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div class="card card-pad lg:col-span-2 flex flex-col gap-3 min-w-0">
+        <div class="flex items-center justify-between gap-3 flex-wrap">
+          <h2 class="section-title">Engine trace, step by step</h2>
+          <span class="chip-neutral" id="rooms-trace-chip">No run yet</span>
+        </div>
+        <p class="text-sm muted">Each student points at the owner of their best room still available. Every closed loop becomes a swap.</p>
+        <div class="bg-sunken border border-line rounded-lg p-4 font-mono text-[13px] leading-relaxed max-h-80 overflow-auto flex flex-col gap-1.5" id="rooms-trace" aria-live="polite">
+          <div class="skeleton h-4 w-3/4 rounded-md"></div><div class="skeleton h-4 w-2/3 rounded-md"></div><div class="skeleton h-4 w-1/2 rounded-md"></div>
+        </div>
+      </div>
+      <div class="card card-pad flex flex-col gap-4">
+        <div>
+          <h2 class="section-title">Top Trading Cycles vs 1:1 swaps</h2>
+          <p class="text-sm muted mt-1">How many more students multi-way chains match than direct swaps alone, on the same pool.</p>
+        </div>
+        <div class="flex flex-col gap-3" id="comparison" aria-live="polite"><div class="skeleton h-10"></div><div class="skeleton h-10"></div></div>
+        <button class="btn-secondary mt-auto w-full" id="btn-compare" type="button"><span class="material-symbols-outlined text-[18px]" aria-hidden="true">compare_arrows</span>Compare on the current pool</button>
+      </div>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div class="card card-pad flex flex-col gap-4">
+        <div>
+          <h2 class="section-title">Automatic rounds</h2>
+          <p class="text-sm muted mt-1">Run a saved room matching round on a timer, so students do not wait for someone to press Run.</p>
+        </div>
+        <div id="schedule-body" aria-live="polite"><div class="flex flex-col gap-3"><div class="skeleton h-9"></div><div class="skeleton h-10 w-48"></div><div class="skeleton h-9 w-32"></div></div></div>
+      </div>
+      <div class="card card-pad flex flex-col gap-4">
+        <h2 class="section-title">How rounds work</h2>
+        <ul class="flex flex-col gap-3 text-sm muted">
+          <li class="flex gap-3"><span class="material-symbols-outlined text-[18px] text-ink-3 shrink-0" aria-hidden="true">schedule</span><span>Everyone in a chain has <strong class="text-ink font-semibold">48 hours</strong> to confirm. If anyone declines or does not answer, the chain is cancelled and the others go back to the pool.</span></li>
+          <li class="flex gap-3"><span class="material-symbols-outlined text-[18px] text-ink-3 shrink-0" aria-hidden="true">apartment</span><span>Students can only rank rooms in hostels they are allowed to live in. This is checked when they send their request, so a round never suggests a move that breaks hostel rules.</span></li>
+          <li class="flex gap-3"><span class="material-symbols-outlined text-[18px] text-ink-3 shrink-0" aria-hidden="true">verified</span><span>When everyone has confirmed, the swap waits for your approval. Approving changes the rooms in CampusSwap's records, and the approval form (PDF) becomes ready to print.</span></li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================================================ Lecture slots -->
+  <section class="flex flex-col gap-6" data-view="slots" aria-labelledby="slots-title" hidden>
+    <div class="flex flex-col lg:flex-row lg:items-end justify-between gap-4">
+      <div class="min-w-0">
+        <h1 class="page-title" id="slots-title">Lecture slots</h1>
+        <p class="muted mt-1">Faculty swap weekly lecture slots through the same matching engine.</p>
+      </div>
+      <div class="flex flex-col gap-2 lg:items-end">
+        <div class="flex flex-wrap items-center gap-2">
+          <label class="inline-flex items-center gap-2 h-9 px-3 rounded-lg border border-line bg-panel text-sm text-ink-2 cursor-pointer hover:border-line-strong" for="slots-dry">
+            <input class="check" id="slots-dry" type="checkbox" aria-describedby="slots-dry-hint"/>Dry run
+          </label>
+          <button class="btn-primary" id="btn-slot-run" type="button"><span class="material-symbols-outlined text-[18px]" aria-hidden="true">play_arrow</span><span data-run-label>Run slot round</span></button>
+        </div>
+        <p class="text-xs faint" id="slots-dry-hint">A dry run shows what a round would do. It saves no swaps and emails nobody.</p>
+      </div>
+    </div>
+
+    <div id="slots-awaiting" aria-live="polite"></div>
+
+    <div class="grid grid-cols-1 sm:grid-cols-3 gap-4" id="slots-kpis" aria-live="polite">
+      <div class="skeleton h-[124px]"></div><div class="skeleton h-[124px]"></div><div class="skeleton h-[124px]"></div>
+    </div>
+
+    <div class="card overflow-hidden">
+      <div class="p-4 border-b border-line flex flex-col lg:flex-row lg:items-center justify-between gap-3">
+        <div class="flex items-center gap-1 overflow-x-auto -mx-1 px-1" id="slots-tabs" role="group" aria-label="Show slot requests"></div>
+        <div class="relative w-full lg:w-72 shrink-0">
+          <label class="sr-only" for="slots-search">Search slot requests</label>
+          <span class="material-symbols-outlined text-[18px] text-ink-3 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" aria-hidden="true">search</span>
+          <input class="field pl-9" id="slots-search" placeholder="Name, course, slot or ID" type="search" autocomplete="off"/>
+        </div>
+      </div>
+      <div id="slots-table-notice"></div>
+      <div class="overflow-x-auto">
+        <table class="w-full min-w-[880px] text-sm">
+          <thead class="table-head"><tr class="whitespace-nowrap">
+            <th scope="col">Request</th><th scope="col">Teacher</th><th scope="col">Slot move</th><th scope="col">Chain</th><th scope="col">Status</th><th scope="col" class="text-right">Action</th>
+          </tr></thead>
+          <tbody id="slots-body" aria-live="polite"><tr><td class="p-4" colspan="6"><div class="flex flex-col gap-3"><div class="skeleton h-10"></div><div class="skeleton h-10"></div><div class="skeleton h-10"></div></div></td></tr></tbody>
+        </table>
+      </div>
+      <div class="px-4 py-3 border-t border-line flex flex-col sm:flex-row sm:items-center justify-between gap-3" id="slots-footer"></div>
+    </div>
+
+    <div class="card card-pad flex flex-col gap-3 min-w-0">
+      <div class="flex items-center justify-between gap-3 flex-wrap">
+        <h2 class="section-title">Slot engine trace, step by step</h2>
+        <span class="chip-neutral" id="slots-trace-chip">No run yet</span>
+      </div>
+      <p class="text-sm muted">Each teacher points at the owner of their best slot still available. Every closed loop becomes a swap.</p>
+      <div class="bg-sunken border border-line rounded-lg p-4 font-mono text-[13px] leading-relaxed max-h-80 overflow-auto flex flex-col gap-1.5" id="slots-trace" aria-live="polite">
+        <div class="skeleton h-4 w-3/4 rounded-md"></div><div class="skeleton h-4 w-2/3 rounded-md"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================================================ Emails (both views) -->
+  <section class="card overflow-hidden" aria-labelledby="emails-title">
+    <div class="card-pad flex items-start justify-between gap-4 border-b border-line">
+      <div class="min-w-0">
+        <h2 class="section-title" id="emails-title">Emails</h2>
+        <p class="text-sm muted mt-1">Notices CampusSwap writes to students and faculty about room and slot swaps. Newest first.</p>
+      </div>
+      <button class="btn-ghost btn-sm shrink-0" id="btn-emails-refresh" type="button"><span class="material-symbols-outlined text-[18px]" aria-hidden="true">refresh</span>Refresh</button>
+    </div>
+    <div id="emails-body" aria-live="polite"><div class="p-5 flex flex-col gap-3"><div class="skeleton h-12"></div><div class="skeleton h-12"></div><div class="skeleton h-12"></div></div></div>
+  </section>
 </main>
-<footer class="w-full bg-white border-t border-slate-200 py-6">
-<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-4 text-slate-500 text-xs font-mono">
-<div class="flex items-center gap-3"><span class="font-bold text-slate-800">CampusSwap</span><span>•</span><span>UCS503P prototype · demo data</span></div>
-<div class="flex items-center gap-6 uppercase text-[11px] font-semibold text-slate-600"><a class="hover:text-coral transition-colors" href="/docs" target="_blank">API reference</a></div>
-</div>
+
+<footer class="border-t border-line">
+  <div class="max-w-6xl mx-auto px-4 sm:px-6 py-6 text-xs faint">CampusSwap · Thapar Institute hostel office</div>
 </footer>
 <script src="/js/admin.js" type="module"></script>
 </body></html>

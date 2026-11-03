@@ -28,12 +28,15 @@ export async function api(path, { method = "GET", body } = {}) {
   return data;
 }
 
+// The first page each kind of user sees after signing in.
+export const homeFor = (role) => ({ admin: "/admin.html", faculty: "/slots.html" })[role] || "/dashboard.html";
+
 // Returns the logged-in user, or sends the browser to the right page.
 export async function requireUser(role) {
   try {
     const me = await api("/api/auth/me");
     if (role && me.role !== role) {
-      location.replace(me.role === "admin" ? "/admin.html" : "/dashboard.html");
+      location.replace(homeFor(me.role));
       return new Promise(() => {});
     }
     return me;

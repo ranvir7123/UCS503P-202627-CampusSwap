@@ -21,7 +21,7 @@ for (const font of fonts) {
 console.log(`Copied ${fonts.length} font files`);
 
 const cli = join(modules, "tailwindcss", "lib", "cli.js");
-for (const page of ["login", "dashboard", "rooms", "admin"]) {
+for (const page of ["login", "dashboard", "rooms", "admin", "slots"]) {
   execFileSync(process.execPath, [
     cli, "-c", `tailwind/${page}.config.cjs`, "-i", "src/tailwind.css", "-o", `public/assets/${page}.css`, "--minify",
   ], { cwd: root, stdio: "inherit" });

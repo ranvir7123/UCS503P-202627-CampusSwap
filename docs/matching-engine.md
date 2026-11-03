@@ -56,7 +56,7 @@ In round 2, 0010 and 0011 both wanted J A-101, which is now gone. They have no c
 so they keep their rooms.
 
 Result: **9 of 12 matched, Match Yield 75%**. Direct 1:1 swaps alone would only find
-0001 ↔ 0002: **2 of 12, 16.7%**. The admin page's *Compare* button shows exactly this.
+0001 ↔ 0002: **2 of 12, 16.7%**. The staff page's *Compare* button shows exactly this.
 
 ## Rooms with more than one bed
 
@@ -64,6 +64,34 @@ Preferences are for **rooms**, but TTC trades **seats**. A double room has two s
 two owners. The engine turns "I want room X" into "I want room X's seats, in seat-ID order".
 So if either occupant of X is in the pool, you can take their seat; if both are, the
 lower seat ID is tried first. This rule makes the result the same every time.
+
+## "Any room like this" choices
+
+A student can also rank a **room type**: a hostel plus, optionally, the number of beds, AC
+or not, and a floor. Before calling the engine, the server (`_wanted_seats()` in
+`services/matching.py`) turns each choice into seats, best choice first: an exact room
+gives its seats; a room type gives the seats of every matching room in that hostel, in room
+order, except the student's own room. A seat already listed by an earlier choice is not
+listed again. So the engine itself never needs to know about room types. When a student
+gets a seat, the choice they "got" is the first of their choices that matches that room.
+
+## Lecture slots use the same engine
+
+For the faculty slot exchange (`services/slots.py`), each open slot request is one
+participant: the **slot offered** plays the part of the seat, and the **ranked slots** are
+what it wants. The same `top_trading_cycles()` finds the chains. When staff approve a slot
+chain, each teacher and their course move to the slot they receive; the time and the hall
+of every slot stay where they are. The seeded slot pool gives one 3-way chain and leaves 1
+teacher unmatched. Slot rounds are always TTC (there is no 1:1 comparison for slots), and
+they are saved as `match_runs` rows with the algorithm name `slot_ttc`.
+
+## When rounds run
+
+Staff can run a round by hand at any time. They can also switch on **automatic rounds**
+every N hours (1 to 336). The server's background check, every 30 seconds, runs a saved
+TTC room round once one is due. If several rounds were missed while the server was off, it
+runs only one and moves the next time forward. Automatic rounds are for rooms only; slot
+rounds are always started by staff.
 
 ## Guarantees (from the proposal, section 5.2)
 
@@ -100,3 +128,5 @@ rounded to one decimal. The proposal's target is **at least 60%** on a pool of 1
 | `ttc.py` | `top_trading_cycles()` and its loop finder |
 | `pairwise.py` | `pairwise_swaps()` |
 | `metrics.py` | `match_yield()`, `cycle_length_counts()` |
+
+The engine has no idea whether it is trading beds or lecture slots: it only sees IDs.

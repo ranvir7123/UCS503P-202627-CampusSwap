@@ -10,7 +10,7 @@ the lab. The steps are numbered; do them in order.
 
 | What | Link | Where it works | Needs internet? |
 |---|---|---|---|
-| **The app** (login, rooms, dashboard, admin) | <http://127.0.0.1:8000> | **Only on the laptop running the server** | No |
+| **The app** (sign in, rooms, student dashboard, faculty slots, staff) | <http://127.0.0.1:8000> | **Only on the laptop running the server** | No |
 | **The documentation website** (docs, diagrams, study guide) | <https://ranvir7123.github.io/UCS503P-202627-CampusSwap/> | Any device, anywhere | Yes |
 | **The code on GitHub** | <https://github.com/ranvir7123/UCS503P-202627-CampusSwap> | Anywhere | Yes |
 | **Automatic test results (CI)** | <https://github.com/ranvir7123/UCS503P-202627-CampusSwap/actions> | Anywhere | Yes |
@@ -30,11 +30,11 @@ you started it.
 
 | Thing | Where |
 |---|---|
-| Working app: 4 pages (login, explore rooms, student dashboard, admin) | `code/frontend/public/` |
+| Working app: 5 pages (sign in, find rooms, student dashboard, faculty lecture slots, hostel staff) | `code/frontend/public/` |
 | Server and all rules | `code/backend/app/` |
 | The matching algorithm (Top Trading Cycles) | `code/backend/engine/` |
-| Demo data (4 hostels, 72 rooms, 144 students, 1 warden) | `code/backend/seed.py` |
-| 90 automated tests | `code/backend/tests/` |
+| Demo data (4 hostels, 72 rooms, 144 students, 1 warden, 8 teachers with 16 lecture slots) | `code/backend/seed.py` |
+| 165 automated tests | `code/backend/tests/` |
 | 4 UML diagrams: pictures | `docs/diagrams/*.png` and `*.svg` |
 | 4 UML diagrams: source text | `diagrams/*.puml` |
 | Diagrams with explanations | Docs site → **Diagrams** |
@@ -109,8 +109,12 @@ happened (requests, rounds, swaps, logins) and loads the original demo data agai
 
 3. You'll see `Loaded demo data into campusswap.db`. Everyone is signed out; sign in again.
 
-After a reset: 12 open requests, no matching round yet, and student1, student2, student3
-have no request.
+After a reset: 12 open room requests, 4 open lecture slot requests, no matching round yet,
+and student1 to student3 and faculty1 to faculty3 have no request.
+
+If starting **without** `--reset` stops with a message that `campusswap.db` *was made by an
+older version of CampusSwap*, that file is from before the latest changes. Run with
+`--reset` once to rebuild it.
 
 ---
 
@@ -125,9 +129,14 @@ have no request.
 | `student2@thapar.edu` | Student | Lives in Hostel M, room B-101 |
 | `student3@thapar.edu` | Student | Lives in Hostel M, room A-201 |
 | `stu001@thapar.edu` … `stu144@thapar.edu` | Student | Every other student (see **Demo accounts** on the docs site). Three numbers in Hostel M are skipped because student1–3 use those beds. |
+| `faculty1@thapar.edu` | Faculty | Dr. Neha Arora: UCS503 (Mon 08:00), UCS414 (Wed 14:00) |
+| `faculty2@thapar.edu` | Faculty | Dr. Vikram Sood: UCS301 (Tue 10:00), UCS310 (Thu 11:00) |
+| `faculty3@thapar.edu` | Faculty | Dr. Kiran Walia: UEC401 (Fri 09:00), UEC510 (Mon 15:00) |
+| `fac004@thapar.edu` … `fac008@thapar.edu` | Faculty | Five more teachers; four of them are in the pre-built slot pool (see **Demo accounts**) |
 
-- **Quick login:** on the login page, click **Use student demo** (fills in student1) or
-  **Use hostel staff demo** (fills in the warden), then **Sign in**.
+- **Quick login:** on the sign-in page, click **Use a demo student account** (fills in
+  student1), **Use a demo hostel staff account** (the warden) or **Use a demo faculty
+  account** (faculty1), then **Sign in**.
 - **Sign out:** the **logout icon** at the top right of every page.
 - **Women's hostels:** K and N (accounts `stu073` to `stu144`). For example,
   `stu074@thapar.edu` lives in Hostel K and has no request yet. She only sees K and N
@@ -138,12 +147,16 @@ have no request.
   other. A different browser also works.
 
 **New accounts:** there is no sign-up page. That's on purpose: at the university, accounts
-would come from the institute login. With 145 ready-made accounts you shouldn't need a new
+would come from the institute login. With 153 ready-made accounts you shouldn't need a new
 one. If you do, see section 12.
 
 ---
 
 ## 7. The demo script (about 8 minutes)
+
+The screens were redesigned after this guide was first written. Button names below were
+checked against the page code, but not every step was clicked through again; if a label
+differs slightly, look for the button with the same meaning.
 
 ### Before ma'am arrives (5 minutes)
 
@@ -153,9 +166,8 @@ one. If you do, see section 12.
     - **Tab 2 (normal window):** <http://127.0.0.1:8000>, which you'll sign in as the warden.
     - **Tab 3 (Incognito window):** <http://127.0.0.1:8000>, which you'll sign in as students.
 3. To save time, **submit student2 and student3's requests now**. In the Incognito window:
-    - Sign in as `student2@thapar.edu` → **Explore Rooms** → set the hostel filter to
-      **Hostel M** → type `A-201` in the search box → **Rank in Preferences** →
-      **Lock 1 Preference & Submit**. Then sign out.
+    - Sign in as `student2@thapar.edu` → **Find rooms** → set the hostel filter to
+      **Hostel M** → find `A-201` → **Add to choices** → **Send request**. Then sign out.
     - Sign in as `student3@thapar.edu` → same steps, but search `A-101`. Sign out.
 4. Optionally, in a PowerShell window, run the tests once so the result is on screen:
 
@@ -163,7 +175,7 @@ one. If you do, see section 12.
     .venv\Scripts\python -m pytest
     ```
 
-    It should end with **`90 passed`**.
+    It should end with **`165 passed`** (plus one warning from a test library).
 
 ### Step 1: the pitch (30 seconds, docs site home page)
 
@@ -175,33 +187,36 @@ approves, and the rooms change."*
 
 ### Step 2: the login page (1 minute, Tab 3)
 
-- Point out the **Student / Hostel Staff** switch and the **@thapar.edu** check (type
-  something wrong to show the red "@thapar.edu required" badge).
+- Point out the **Student / Hostel staff / Faculty** tabs and the **@thapar.edu** check.
+  The server checks it too, and too many wrong passwords block further tries for up to
+  15 minutes.
 - The numbers on the page (open requests, rooms) are **live from the server**.
 - Say: *"Passwords are stored hashed, and the login cookie can't be read by page scripts."*
-- Click **Use student demo** → **Sign in** (this is student1).
+- Click **Use a demo student account** → **Sign in** (this is student1).
 
 ### Step 3: feature 1, submit a ranked request (1.5 minutes, as student1)
 
-1. On the dashboard, show **"Start your room exchange"**, the current room card
+1. On the dashboard, show the "No request yet" state, the current room card
    (A-101) and the 5 steps on the right.
-2. Click **Choose rooms to swap into** (or **Explore Rooms**).
-3. Show the filters, the room cards, the **"open to swap"** badges and the ranked list on the right.
-4. Hostel filter → **Hostel M**, search `B-101` → **Rank in Preferences**.
-5. Click **Lock 1 Preference & Submit**. You get a tracking ID (**CS-2026-0015** if you did
+2. Open **Find rooms**.
+3. Show the filters, the room cards, the **"open to swap"** badges and the ranked list.
+   Mention that a student can also add "any room like this" (a hostel plus beds, AC or floor).
+4. Hostel filter → **Hostel M**, find `B-101` → **Add to choices**.
+5. Click **Send request**. You get a tracking ID (**CS-2026-0015** if you did
    the preparation steps above) and land on the dashboard showing **"In the matching pool"**.
-6. Say: *"The server checks every rule: at most 5 rooms, no duplicates, not your own room,
-   only hostels you're allowed in, one active request at a time."*
+6. Say: *"The server checks every rule: at most 5 choices, no duplicates, not your own room,
+   only hostels you're allowed in, one active request at a time. The database itself refuses
+   a second active request, even if two clicks arrive at once."*
 
 ### Step 4: feature 2, run the matching round (2 minutes, Tab 2)
 
-1. Sign in with **Use hostel staff demo** → **Sign in**. You're on the **Admin Engine Room**.
+1. Sign in with **Use a demo hostel staff account** → **Sign in**. You're on the staff page, **Room swaps** view.
 2. Show the cards: **15 students in the pool**, no round yet.
-3. Click **Compare on the current pool** (the right-hand card at the bottom). It shows
+3. Click **Compare on the current pool**. It shows
    **TTC 80% vs 1:1 swaps only 13.3%**. Say: *"This is the evaluation from our proposal:
    same students, and multi-way chains match far more people. Nothing is saved; it's a dry run."*
-4. Click **Run TTC Matching Round** → **OK** in the pop-up.
-5. The black **Engine trace** box shows what TTC did, round by round: *"Round 1: 15 students
+4. Click **Run matching round** and confirm.
+5. The **trace** box shows what TTC did, round by round: *"Round 1: 15 students
    point at the owner of their best available room"* and the chains it found. Read one chain aloud.
 6. The cards now show **1 two-way swap**, **3 multi-way loops** and **Match Yield 80%**
    (target ≥ 60%). In the table, click any row to expand its ranked choices and chain members.
@@ -219,15 +234,17 @@ approves, and the rooms change."*
 
 ### Step 6: approve (30 seconds, Tab 2)
 
-1. Refresh the admin page. The banner says **"1 swap ready to approve"**; click it.
+1. Refresh the staff page. The confirmed chain is marked as waiting for approval.
 2. Click **Approve swap** → **OK**.
 3. In Tab 3, sign in as student1: the room card now says **Room B-101**, and all 5 steps are done.
+4. Back on the staff page, the approved swap has an **Approval form (PDF)** link: a one-page
+   form with every member, their rooms, the confirmation times and signature lines.
 
 ### Step 7: the proof (1 minute)
 
 - **Diagrams:** docs site → **Diagrams** (Use Case, Class, Sequence, Activity, each with the
   reasons for its relationships).
-- **Tests:** the PowerShell window with **90 passed**, and the GitHub **Actions** page with green ticks.
+- **Tests:** the PowerShell window with **165 passed**, and the GitHub **Actions** page with green ticks.
 - **Code:** show the folders on GitHub: `code/backend/engine` (the algorithm),
   `code/backend/app` (server), `code/frontend` (pages).
 - **API page:** <http://127.0.0.1:8000/docs> lists every endpoint (this page needs internet).
@@ -237,9 +254,18 @@ approves, and the rooms change."*
 - **Decline:** after a round, sign in as `stu001@thapar.edu` (in the demo 2-way swap) and
   click **Decline swap**. The chain is cancelled and the partner goes back to the pool.
 - **Gender rule:** sign in as `stu074@thapar.edu`. Only Hostels K and N appear.
-- **Dry run:** admin → **Dry run: OFF** button turns it ON. Then Run shows the result
-  without saving anything.
-- **Export CSV:** admin → **Export CSV** downloads every request as a spreadsheet.
+- **Dry run:** staff page → switch on **Dry run**. Then Run shows the result without
+  saving anything.
+- **Export CSV / event log:** staff page → **Export CSV** downloads every request;
+  **Download event log** downloads every recorded action.
+- **Automatic rounds:** staff page → **Automatic rounds** → switch on and choose every how
+  many hours. The server runs the round by itself when it is due.
+- **Emails:** staff page → **Emails** shows every email CampusSwap queued (swap found,
+  reminders). With no mail server set up they stay queued; nothing is sent.
+- **Faculty slot swap:** sign in as `faculty1@thapar.edu` (Faculty tab), offer UCS503 and
+  rank the UCS301 slot; as `faculty2@thapar.edu` offer UCS301 and rank the UCS503 slot.
+  On the staff page, **Lecture slots** view → **Run slot round**. Both teachers confirm,
+  the warden approves, and each teacher's course moves to the other's time and hall.
 
 ---
 
@@ -288,9 +314,11 @@ browser's phone view instead: press `F12` → click the phone icon (**Toggle dev
 | **`python` is not recognized** | Python isn't installed or wasn't added to PATH. Reinstall and tick "Add to PATH". |
 | **`No module named ...`** | You skipped the install step, or aren't in the project folder. Do section 3, step 3. |
 | **"Wrong email or password"** | The password is `campus123`. If you reset while logged in, sign in again. |
-| **"This account belongs on the Hostel Staff tab"** | You used the wrong tab; the page switches it for you. Click Sign in again. |
+| **"Too many failed sign-ins. Try again in N minutes"** | Wait, or reset (section 5), which clears the failure count. |
+| **"... was made by an older version of CampusSwap"** when starting | Start once with `--reset` (section 5). |
+| **"This account belongs on the Hostel Staff tab"** (or Student / Faculty) | You used the wrong tab. Switch tabs and click Sign in again. |
 | **"You already have an active request"** | That student already submitted. Use another student, or reset (section 5). |
-| Admin shows no chain for your 3 students | Check all three submitted the right rooms (student1 → B-101, student2 → A-201, student3 → A-101) *before* running the round. Otherwise reset and redo. |
+| The staff page shows no chain for your 3 students | Check all three submitted the right rooms (student1 → B-101, student2 → A-201, student3 → A-101) *before* running the round. Otherwise reset and redo. |
 | Page looks unstyled (plain text) | Press `Ctrl + F5`. If still broken, the CSS files are missing: `git pull` again. |
 | Everything is messy | Reset (section 5). It takes 5 seconds. |
 
@@ -300,9 +328,15 @@ browser's phone view instead: press `F12` → click the phone icon (**Toggle dev
 
 - **"Is it deployed?"** The docs are live on GitHub Pages; the app runs locally (see section 1).
 - **"Is this real student data?"** No, it's all made up. Real data needs university permission.
-- **"Is this Thapar's real login?"** No, it's email + password. Institute single sign-on is future work.
-- **"What's not done?"** Notifications, the PDF approval form, the faculty slot module, a
-  background timer for deadlines, and a cloud deployment. See **Limitations and Phase 2**.
+- **"Is this Thapar's real login?"** No, it's email + password, limited to `@thapar.edu`
+  addresses, with limits on failed sign-ins. Microsoft single sign-on is not built: it needs
+  an app registration inside Thapar's own Microsoft account system, which only the
+  university can create.
+- **"Do the emails really send?"** Only if a mail server is set up (`CAMPUSSWAP_SMTP_HOST`).
+  We have not tested it against a real mail server; in the demo, emails stay queued and staff
+  can read them.
+- **"What's not done?"** Single sign-on, a tested real mail server, browser tests, and a
+  cloud deployment. See **Limitations and Phase 2**.
 - **"Who did what?"** Each of you should say your P-role (see the **Study guide**).
 
 ---
@@ -318,7 +352,7 @@ browser's phone view instead: press `F12` → click the phone icon (**Toggle dev
 - **Run on another port:** `.venv\Scripts\python code/backend/run.py --port 8001`.
 - **Where the data lives:** `code/backend/campusswap.db` (one file). Deleting it is the same as `--reset`.
 - **Adding a brand-new account:** not possible from the app (no sign-up page). Either use
-  one of the 145 demo accounts, or add a person to `code/backend/seed.py` and run with
+  one of the 153 demo accounts, or add a person to `code/backend/seed.py` and run with
   `--reset`. Ask Ranvir before editing the seed file: the demo numbers (75% / 80%) depend on it.
 
 ## 13. Command card (copy these)
@@ -327,7 +361,7 @@ browser's phone view instead: press `F12` → click the phone icon (**Toggle dev
 cd C:\dev\Swe-Project                                   # go to the project
 .venv\Scripts\python code/backend/run.py                # start the app
 .venv\Scripts\python code/backend/run.py --reset        # start fresh (wipes all changes)
-.venv\Scripts\python -m pytest                          # run all 90 tests
+.venv\Scripts\python -m pytest                          # run all 165 tests
 .venv\Scripts\python diagrams/render.py                 # re-draw the diagrams
 ```
 

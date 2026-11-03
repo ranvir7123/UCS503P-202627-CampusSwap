@@ -3,15 +3,38 @@
 Every account below exists after `run.py --reset`. **The password for all of them is `campus123`.**
 All names, roll numbers and emails are made up.
 
-- Sign in as a **student** with the *Student* tab, and as the **warden** with the *Hostel Staff* tab.
+- Sign in as a **student** with the *Student* tab, as the **warden** with the *Hostel staff* tab,
+  and as a **teacher** with the *Faculty* tab.
 - Students can only see and rank rooms in hostels of their own gender (J and M: men; K and N: women).
-- "In demo pool" means the student already has an open request when the app starts.
+- "In demo pool" means the person already has an open request when the app starts.
+- Tracking IDs carry the year the demo data was loaded (`2026` below).
 
 ## Hostel staff
 
 | Email | Name |
 |---|---|
 | `warden@thapar.edu` | Warden Office |
+
+## Faculty (lecture slot exchange)
+
+Each teacher has two weekly lectures of 50 minutes. A slot swap moves the teacher and
+their course to another slot; the time and the hall of each slot stay the same.
+
+| Email | Name | Department | Lectures (course, time, hall) | In demo pool |
+|---|---|---|---|---|
+| `faculty1@thapar.edu` | Dr. Neha Arora | CSED | UCS503 Software Engineering, Mon 08:00-08:50, LT-101; UCS414 Computer Networks, Wed 14:00-14:50, LT-102 |  |
+| `faculty2@thapar.edu` | Dr. Vikram Sood | CSED | UCS301 Data Structures, Tue 10:00-10:50, LT-103; UCS310 Database Management Systems, Thu 11:00-11:50, LT-101 |  |
+| `faculty3@thapar.edu` | Dr. Kiran Walia | ECED | UEC401 Analog Circuits, Fri 09:00-09:50, LT-104; UEC510 Digital Signal Processing, Mon 15:00-15:50, LT-102 |  |
+| `fac004@thapar.edu` | Dr. Amit Chawla | CSED | UCS520 Machine Learning, Mon 10:00-10:50, LT-101; UCS615 Image Processing, Thu 15:00-15:50, LT-103 | yes (SL-2026-0001): offers UCS520, wants the UCS701 slot |
+| `fac005@thapar.edu` | Dr. Ritu Bhalla | ECED | UEC612 VLSI Design, Tue 14:00-14:50, LT-104; UEC301 Signals and Systems, Fri 11:00-11:50, LT-101 | yes (SL-2026-0004): offers UEC612, wants the UME513 slot (stays unmatched, because its owner is not in the pool) |
+| `fac006@thapar.edu` | Dr. Sanjay Grover | MED | UME410 Thermodynamics, Wed 09:00-09:50, LT-102; UME513 Machine Design, Fri 15:00-15:50, LT-103 |  |
+| `fac007@thapar.edu` | Dr. Meenakshi Rao | CSED | UCS701 Cloud Computing, Tue 09:00-09:50, LT-101; UCS420 Cognitive Computing, Thu 09:00-09:50, LT-102 | yes (SL-2026-0002): offers UCS701, wants the UEI501 slot |
+| `fac008@thapar.edu` | Dr. Harpreet Dhillon | EIED | UEI501 Control Systems, Wed 11:00-11:50, LT-103; UEI610 Robotics, Wed 14:00-14:50, LT-104 | yes (SL-2026-0003): offers UEI501, wants the UCS520 slot |
+
+The four pool requests give one **3-way chain** (fac004 → fac007 → fac008 → fac004, each
+takes the next one's slot) and leave fac005 unmatched. faculty1 to faculty3 have no request,
+so you can make a live 2-way swap: **faculty1** offers UCS503 (Mon 08:00) and ranks the
+UCS301 slot; **faculty2** offers UCS301 (Tue 10:00) and ranks the UCS503 slot.
 
 ## Hostel J (men)
 

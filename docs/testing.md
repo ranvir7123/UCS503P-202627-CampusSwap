@@ -6,7 +6,15 @@ Run everything from the repository root:
 .venv\Scripts\python -m pytest
 ```
 
-There are **90 tests**, and they take about 10 to 15 seconds. They live in `code/backend/tests/`.
+There are **165 tests**. They live in `code/backend/tests/`. The last run, from the
+repository root with `.venv/Scripts/python -m pytest -q`, ended with:
+
+```
+165 passed, 1 warning in 32.50s
+```
+
+The one warning comes from the test client library (Starlette suggests a newer HTTP
+client package), not from CampusSwap's code.
 
 | File | Tests | What it proves |
 |---|---|---|
@@ -17,10 +25,15 @@ There are **90 tests**, and they take about 10 to 15 seconds. They live in `code
 | `test_security.py` | 5 | Password hashing and session tokens |
 | `test_seed.py` | 4 | Demo data: every seat filled, genders match hostels, demo logins work |
 | `test_requests_service.py` | 12 | Every rule for submitting and withdrawing a request |
+| `test_room_types.py` | 12 | "Any room like this" choices: saved with a readable label, mixed with exact rooms, rejected when no room matches or the hostel is wrong, used by TTC to find a chain, accepted by the API |
 | `test_matching_service.py` | 9 | Matching rounds: the seeded pool gives one 2-, 3- and 4-way chain; dry runs change nothing; only one run at a time |
 | `test_cycles_service.py` | 8 | Confirm, decline, deadline expiry, approval moving students |
-| `test_views_service.py` | 9 | The data each page receives, in every state |
+| `test_views_service.py` | 10 | The data each page receives, in every state |
 | `test_api.py` | 15 | Over real HTTP: login, permissions, readable errors, a full 3-way swap from request to approval, and pages telling browsers to check for updates |
+| `test_auth_security.py` | 18 | Only `@thapar.edu` emails; the failed sign-in limits (per email + address, per address, per email), the lock lifting after 15 minutes, IPv6 /64 grouping, IPv4 seen as IPv6 kept apart; HTTPS mode marks the cookie Secure, sends HSTS and redirects plain HTTP |
+| `test_operations.py` | 21 | Emails (queued per member, none for dry runs, one reminder, kept queued without a mail server, retried after a failure), automatic rounds (off at first, run when due, bad interval refused), the background tick, the PDF approval form, the event log CSV, and staff-only access |
+| `test_slots.py` | 20 | Lecture slots: offering and ranking, clash and ownership rules, one active request, the seeded 3-way chain, the faculty1/faculty2 2-way swap end to end, decline and deadline expiry, faculty routes and permissions, the database refusing a second active request, approval re-checking slot owners |
+| `test_run.py` | 3 | `run.py`'s check that an existing database has every table and column (so an old file asks for `--reset`) |
 
 ## How the tests are set up
 
@@ -41,8 +54,12 @@ The template's `.github/workflows/mkdocs.yml` publishes this documentation site 
 
 ## What is not tested automatically
 
-- The four pages are checked by hand in a browser (and their JavaScript is checked for
-  syntax errors with `node --check`). There are no automated browser tests yet.
+- The five pages. There are no automated browser tests yet.
+- Sending email through a real mail server: the tests use a stand-in sender function, so
+  the SMTP code path (`smtp_sender_from_env()` in `services/mail.py`) is only checked to
+  switch on when `CAMPUSSWAP_SMTP_HOST` is set.
+- `run.py` itself (starting the server, the `--cert` / `--key` HTTPS start-up and the
+  30-second background loop). The tests call `create_app()` and `tick()` directly instead.
 - The strategy-proof and core-stable properties of TTC are proven results about the
   algorithm; the tests check the properties that can be checked directly (nobody worse
   off, seats never given twice, every cycle really closes).

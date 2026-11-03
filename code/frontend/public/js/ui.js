@@ -40,7 +40,7 @@ export function countdown(iso) {
 }
 export const pad2 = (n) => String(n).padStart(2, "0");
 
-// Dark toast, as in the references. position: "bottom" (dashboard/rooms) or "top" (admin).
+// Toast in the corner. position: "bottom" (most pages) or "top".
 let toastTimer;
 export function toast(title, message = "", { icon = "check_circle", tone = "success", position = "bottom" } = {}) {
   let el = document.getElementById("cs-toast");
@@ -52,15 +52,13 @@ export function toast(title, message = "", { icon = "check_circle", tone = "succ
     document.body.appendChild(el);
   }
   const where = position === "top" ? "top-5 right-5" : "bottom-6 right-6";
-  const iconTone = tone === "error" ? "bg-red-500/20 text-red-300 border-red-500/30" : "bg-emerald-500/20 text-emerald-400 border-emerald-500/30";
-  el.className = `fixed ${where} z-[9999] max-w-md bg-slate-900 text-white px-5 py-4 rounded-2xl shadow-2xl flex items-center gap-3 border border-slate-700 transition-all duration-300 opacity-0 translate-y-2`;
+  const iconTone = tone === "error" ? "text-bad" : "text-ok";
+  el.className = `fixed ${where} z-[9999] max-w-[calc(100vw-2rem)] sm:max-w-md bg-raised text-ink px-4 py-3 rounded-xl shadow-2xl shadow-black/40 flex items-start gap-3 border border-line-strong transition-all duration-200 opacity-0 translate-y-2`;
   el.innerHTML = html`
-    <div class="w-8 h-8 rounded-xl ${raw(iconTone)} flex items-center justify-center shrink-0 border">
-      <span class="material-symbols-outlined text-[20px]">${icon}</span>
-    </div>
-    <div class="flex flex-col min-w-0">
-      <span class="text-xs font-bold text-white">${title}</span>
-      ${message ? raw(html`<span class="text-[11px] text-slate-400">${message}</span>`) : ""}
+    <span class="material-symbols-outlined text-[20px] ${raw(iconTone)} shrink-0">${icon}</span>
+    <div class="flex flex-col min-w-0 gap-0.5">
+      <span class="text-sm font-semibold text-ink">${title}</span>
+      ${message ? raw(html`<span class="text-xs text-ink-2 break-words">${message}</span>`) : ""}
     </div>`;
   requestAnimationFrame(() => el.classList.remove("opacity-0", "translate-y-2"));
   clearTimeout(toastTimer);

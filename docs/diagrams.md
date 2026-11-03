@@ -5,13 +5,18 @@ Sources are in `diagrams/*.puml` (PlantUML text). Re-draw them with
 two). Each diagram below comes with the reasons behind its relationships, because the lab
 asks us to justify them. The same images are used in the SRS (`srs/main.tex`).
 
+The diagrams were drawn for the room swap flow, before the lecture slot exchange, emails,
+automatic rounds, sign-in limits and the 30-second background check were added. They do
+not show those parts; the current tables are listed in [Data model](data-model.md).
+
 ## Use Case diagram
 
 ![Use Case diagram](diagrams/use-case.svg)
 
 **Actors.** *Student* and *Hostel Staff (Warden)* are the two kinds of people who use the
-system. There is no clock actor: in the prototype the 48-hour deadline is checked when
-something happens, not by a timer.
+system. There is no clock actor because, when the diagram was drawn, the 48-hour deadline
+was checked only when something happened. The server now also checks it every 30 seconds
+in the background; the diagram has not been updated for that.
 
 **Why these relationships:**
 
