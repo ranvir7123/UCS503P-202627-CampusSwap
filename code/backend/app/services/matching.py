@@ -65,13 +65,20 @@ def compare_algorithms(db: Session, admin: Admin, now: datetime) -> tuple[MatchR
 
 
 def _wanted_seats(request: SwapRequest) -> tuple[int, ...]:
-    """Ranked rooms -> ranked seats (a room's seats in id order)."""
-    return tuple(seat.id for pref in request.preferences for seat in pref.room.seats)
+    """Ranked choices -> ranked seats. A room gives its seats in id order; a room
+    type gives the seats of every matching room except the student's own."""
+    own_room = request.seat.room_id
+    seats: list[int] = []
+    for pref in request.preferences:
+        for room in pref.rooms():
+            if room.id != own_room:
+                seats.extend(seat.id for seat in room.seats if seat.id not in seats)
+    return tuple(seats)
 
 
 def _received_rank(db: Session, request: SwapRequest, seat_id: int) -> int:
-    room_id = db.get(Seat, seat_id).room_id
-    return next(p.rank for p in request.preferences if p.room_id == room_id)
+    room = db.get(Seat, seat_id).room
+    return next(p.rank for p in request.preferences if p.matches(room))
 
 
 def _save_cycle(db, run, members, by_id, result: MatchResult, ranks, now) -> None:

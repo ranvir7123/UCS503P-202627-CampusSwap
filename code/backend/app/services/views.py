@@ -37,6 +37,14 @@ def room_dict(room: Room) -> dict:
     }
 
 
+def pref_dict(pref) -> dict:
+    return {"rank": pref.rank, "kind": "type" if pref.is_type else "room", "label": pref.label,
+            "room": None if pref.is_type else room_dict(pref.room),
+            "type": None if not pref.is_type else {
+                "hostel": pref.type_hostel.code, "seater": pref.type_seater, "ac": pref.type_ac,
+                "floor": pref.type_floor}}
+
+
 def run_summary(run: MatchRun | None) -> dict | None:
     if run is None:
         return None
@@ -126,7 +134,7 @@ def student_dashboard(db: Session, student: Student, now: datetime) -> dict:
                                            "warden": seat.room.hostel.warden_name},
         "request": None if request is None else {
             "tracking_id": request.tracking_id, "status": request.status, "created_at": iso(request.created_at),
-            "preferences": [{"rank": p.rank, "room": room_dict(p.room)} for p in request.preferences],
+            "preferences": [pref_dict(p) for p in request.preferences],
         },
         "cycle": cycle_view,
         "milestones": [
@@ -194,7 +202,7 @@ def admin_requests(db: Session) -> list[dict]:
             "student": {"name": request.student.name, "roll_no": request.student.roll_no,
                         "year": request.student.year, "initials": initials(request.student.name)},
             "offered_room": request.seat.room.label,
-            "preferences": [p.room.label for p in request.preferences],
+            "preferences": [p.label for p in request.preferences],
             "assigned_room": membership.receives_seat.room.label if active_cycle else None,
             "received_rank": membership.received_rank if active_cycle else None,
             "cycle": None if not active_cycle else {

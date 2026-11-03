@@ -123,14 +123,51 @@ class SwapRequest(Base):
 
 
 class Preference(Base):
+    """One ranked choice: either one exact room, or a room type in one hostel.
+
+    A type is a hostel plus any of seater / AC / floor; an unset filter means "any".
+    """
+
     __tablename__ = "preferences"
     __table_args__ = (UniqueConstraint("request_id", "rank"), UniqueConstraint("request_id", "room_id"))
     id: Mapped[int] = mapped_column(primary_key=True)
     request_id: Mapped[int] = mapped_column(ForeignKey("swap_requests.id", ondelete="CASCADE"))
     rank: Mapped[int] = mapped_column(Integer)  # 1 = most wanted
-    room_id: Mapped[int] = mapped_column(ForeignKey("rooms.id"))
+    room_id: Mapped[Optional[int]] = mapped_column(ForeignKey("rooms.id"), nullable=True)
+    type_hostel_id: Mapped[Optional[int]] = mapped_column(ForeignKey("hostels.id"), nullable=True)
+    type_seater: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    type_ac: Mapped[Optional[bool]] = mapped_column(Boolean, nullable=True)
+    type_floor: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
     request: Mapped[SwapRequest] = relationship(back_populates="preferences")
-    room: Mapped[Room] = relationship()
+    room: Mapped[Optional[Room]] = relationship()
+    type_hostel: Mapped[Optional[Hostel]] = relationship()
+
+    @property
+    def is_type(self) -> bool:
+        return self.room_id is None
+
+    def matches(self, room: Room) -> bool:
+        if not self.is_type:
+            return room.id == self.room_id
+        return (room.hostel_id == self.type_hostel_id
+                and self.type_seater in (None, room.seater)
+                and self.type_ac in (None, room.ac)
+                and self.type_floor in (None, room.floor))
+
+    def rooms(self) -> list[Room]:
+        """The rooms this choice stands for, in room order."""
+        if not self.is_type:
+            return [self.room]
+        return [r for r in self.type_hostel.rooms if self.matches(r)]
+
+    @property
+    def label(self) -> str:
+        if not self.is_type:
+            return self.room.label
+        seater = f"{self.type_seater}-seater " if self.type_seater else ""
+        ac = {True: "AC ", False: "non-AC ", None: ""}[self.type_ac]
+        floor = f", floor {self.type_floor}" if self.type_floor is not None else ""
+        return f"Any {seater}{ac}room in {self.type_hostel.name}{floor}"
 
 
 # ---------------------------------------------------------------- matching
