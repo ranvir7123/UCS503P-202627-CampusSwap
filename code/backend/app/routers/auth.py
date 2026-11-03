@@ -6,14 +6,14 @@ from sqlalchemy import delete, select
 
 from app.deps import DB, SESSION_COOKIE, SESSION_HOURS, CurrentUser, Now, current_user
 from app.errors import DomainError
-from app.models import LoginSession, Student, User
+from app.models import Faculty, LoginSession, Student, User
 from app.schemas import LoginIn
 from app.security import hash_password, new_session_token, token_digest, verify_password
 from app.services import signin
 from app.services.views import initials
 
 router = APIRouter(prefix="/api/auth", tags=["auth"])
-ROLE_TABS = {"student": "Student", "admin": "Hostel Staff"}
+ROLE_TABS = {"student": "Student", "admin": "Hostel Staff", "faculty": "Faculty"}
 _DUMMY_HASH = hash_password("timing-equaliser")  # so unknown emails take as long as wrong passwords
 
 
@@ -22,6 +22,8 @@ def me_payload(user: User) -> dict:
     if isinstance(user, Student):
         data |= {"roll_no": user.roll_no, "year": user.year, "branch": user.branch,
                  "room": user.seat.room.label if user.seat else None}
+    if isinstance(user, Faculty):
+        data |= {"department": user.department}
     return data
 
 

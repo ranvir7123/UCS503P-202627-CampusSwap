@@ -17,7 +17,7 @@ class Base(DeclarativeBase):
 
 # ---------------------------------------------------------------- people
 class User(Base):
-    """Anyone who can log in. Student and Admin share this one table."""
+    """Anyone who can log in. Student, Admin and Faculty share this one table."""
 
     __tablename__ = "users"
     id: Mapped[int] = mapped_column(primary_key=True)
@@ -39,6 +39,12 @@ class Student(User):
 
 class Admin(User):
     __mapper_args__ = {"polymorphic_identity": "admin"}
+
+
+class Faculty(User):
+    department: Mapped[Optional[str]] = mapped_column(String(10), nullable=True)
+    slots: Mapped[list["LectureSlot"]] = relationship(back_populates="owner", order_by="LectureSlot.day, LectureSlot.start_min")
+    __mapper_args__ = {"polymorphic_identity": "faculty"}
 
 
 class LoginSession(Base):
@@ -263,3 +269,99 @@ class Schedule(Base):
     set_by_id: Mapped[Optional[int]] = mapped_column(ForeignKey("users.id"), nullable=True)
     last_run_id: Mapped[Optional[int]] = mapped_column(ForeignKey("match_runs.id"), nullable=True)
     set_by: Mapped[Optional[User]] = relationship()
+
+
+# ---------------------------------------------------------------- faculty lecture slots
+DAYS = ("Mon", "Tue", "Wed", "Thu", "Fri", "Sat")
+
+
+class LectureSlot(Base):
+    """One weekly lecture: a time and a hall, taught by its owner.
+
+    A swap moves teachers (with their course) between slots; the time and hall stay.
+    """
+
+    __tablename__ = "lecture_slots"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    day: Mapped[int] = mapped_column(Integer)  # 0 = Monday
+    start_min: Mapped[int] = mapped_column(Integer)  # minutes after midnight
+    length_min: Mapped[int] = mapped_column(Integer, default=50)
+    hall: Mapped[str] = mapped_column(String(12))
+    course_code: Mapped[str] = mapped_column(String(10))
+    course_name: Mapped[str] = mapped_column(String(80))
+    owner_id: Mapped[int] = mapped_column(ForeignKey("users.id"))
+    owner: Mapped[Faculty] = relationship(back_populates="slots")
+
+    @property
+    def end_min(self) -> int:
+        return self.start_min + self.length_min
+
+    @property
+    def time_label(self) -> str:
+        def hhmm(m: int) -> str:
+            return f"{m // 60:02d}:{m % 60:02d}"
+        return f"{DAYS[self.day]} {hhmm(self.start_min)}-{hhmm(self.end_min)}"
+
+    @property
+    def label(self) -> str:
+        return f"{self.time_label} · {self.hall}"
+
+    def clashes_with(self, other: "LectureSlot") -> bool:
+        return self.day == other.day and self.start_min < other.end_min and other.start_min < self.end_min
+
+
+class SlotRequest(Base):
+    __tablename__ = "slot_requests"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    tracking_id: Mapped[Optional[str]] = mapped_column(String(16), unique=True, nullable=True)
+    faculty_id: Mapped[int] = mapped_column(ForeignKey("users.id"))
+    slot_id: Mapped[int] = mapped_column(ForeignKey("lecture_slots.id"))  # the slot offered
+    status: Mapped[str] = mapped_column(String(10))  # open / matched / completed / withdrawn
+    created_at: Mapped[datetime] = mapped_column(DateTime)
+    updated_at: Mapped[datetime] = mapped_column(DateTime)
+    faculty: Mapped[Faculty] = relationship()
+    slot: Mapped[LectureSlot] = relationship()
+    preferences: Mapped[list["SlotPreference"]] = relationship(
+        back_populates="request", order_by="SlotPreference.rank", cascade="all, delete-orphan"
+    )
+
+
+class SlotPreference(Base):
+    __tablename__ = "slot_preferences"
+    __table_args__ = (UniqueConstraint("request_id", "rank"), UniqueConstraint("request_id", "slot_id"))
+    id: Mapped[int] = mapped_column(primary_key=True)
+    request_id: Mapped[int] = mapped_column(ForeignKey("slot_requests.id", ondelete="CASCADE"))
+    rank: Mapped[int] = mapped_column(Integer)
+    slot_id: Mapped[int] = mapped_column(ForeignKey("lecture_slots.id"))
+    request: Mapped[SlotRequest] = relationship(back_populates="preferences")
+    slot: Mapped[LectureSlot] = relationship()
+
+
+class SlotCycle(Base):
+    __tablename__ = "slot_cycles"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    match_run_id: Mapped[int] = mapped_column(ForeignKey("match_runs.id"))
+    status: Mapped[str] = mapped_column(String(10))  # proposed / confirmed / approved / dissolved
+    deadline: Mapped[datetime] = mapped_column(DateTime)
+    created_at: Mapped[datetime] = mapped_column(DateTime)
+    closed_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+    approved_by_id: Mapped[Optional[int]] = mapped_column(ForeignKey("users.id"), nullable=True)
+    approved_by: Mapped[Optional[User]] = relationship()
+    members: Mapped[list["SlotCycleMember"]] = relationship(back_populates="cycle", order_by="SlotCycleMember.position")
+
+
+class SlotCycleMember(Base):
+    __tablename__ = "slot_cycle_members"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    cycle_id: Mapped[int] = mapped_column(ForeignKey("slot_cycles.id"))
+    request_id: Mapped[int] = mapped_column(ForeignKey("slot_requests.id"))
+    position: Mapped[int] = mapped_column(Integer)
+    gives_slot_id: Mapped[int] = mapped_column(ForeignKey("lecture_slots.id"))
+    receives_slot_id: Mapped[int] = mapped_column(ForeignKey("lecture_slots.id"))
+    received_rank: Mapped[int] = mapped_column(Integer)
+    response: Mapped[str] = mapped_column(String(10), default="pending")
+    responded_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+    cycle: Mapped[SlotCycle] = relationship(back_populates="members")
+    request: Mapped[SlotRequest] = relationship()
+    gives_slot: Mapped[LectureSlot] = relationship(foreign_keys=[gives_slot_id])
+    receives_slot: Mapped[LectureSlot] = relationship(foreign_keys=[receives_slot_id])

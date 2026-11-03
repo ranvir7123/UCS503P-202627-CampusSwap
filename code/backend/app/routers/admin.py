@@ -1,8 +1,8 @@
 from fastapi import APIRouter, Response
 
 from app.deps import DB, CurrentAdmin, Now
-from app.schemas import MatchRunIn, ScheduleIn
-from app.services import cycles, mail, schedule
+from app.schemas import MatchRunIn, ScheduleIn, SlotRunIn
+from app.services import cycles, mail, schedule, slots
 from app.services.matching import compare_algorithms, run_matching
 from app.services.views import admin_overview, admin_requests, events_csv, export_csv, run_summary
 
@@ -77,3 +77,22 @@ def put_schedule(body: ScheduleIn, db: DB, admin: CurrentAdmin, now: Now) -> dic
     schedule.update(db, admin, body.enabled, body.every_hours, now)
     db.commit()
     return schedule.view(db)
+
+
+@router.get("/slots")
+def slot_board(db: DB, admin: CurrentAdmin) -> dict:
+    return slots.admin_board(db)
+
+
+@router.post("/slot-runs")
+def slot_run(body: SlotRunIn, db: DB, admin: CurrentAdmin, now: Now) -> dict:
+    run = slots.run_round(db, admin, body.dry_run, now)
+    db.commit()
+    return {**run_summary(run), "trace": run.trace}
+
+
+@router.post("/slot-cycles/{cycle_id}/approve")
+def approve_slots(cycle_id: int, db: DB, admin: CurrentAdmin, now: Now) -> dict:
+    cycle = slots.approve(db, admin, cycle_id, now)
+    db.commit()
+    return {"cycle_id": cycle.id, "status": cycle.status}

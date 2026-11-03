@@ -17,7 +17,7 @@ from app.db import make_engine, make_session_factory
 from app.errors import DomainError
 from app.clock import utcnow
 from app.models import Base
-from app.routers import admin, auth, public, student
+from app.routers import admin, auth, faculty, public, student
 
 FRONTEND_DIR = Path(__file__).resolve().parents[2] / "frontend" / "public"
 
@@ -107,7 +107,7 @@ def create_app(database_url: str | None = None, frontend_dir: Path | None = FRON
             response = await call_next(request)
             response.headers["Strict-Transport-Security"] = "max-age=31536000"
             return response
-    for module in (auth, public, student, admin):
+    for module in (auth, public, student, faculty, admin):
         app.include_router(module.router)
     # Pages last, so /api/... is always matched first.
     if frontend_dir is not None and Path(frontend_dir).is_dir():

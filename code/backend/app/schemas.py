@@ -7,7 +7,7 @@ from pydantic import BaseModel, Field, model_validator
 class LoginIn(BaseModel):
     email: str = Field(min_length=3, max_length=120)
     password: str = Field(min_length=1, max_length=200)
-    role: Literal["student", "admin"]
+    role: Literal["student", "admin", "faculty"]
 
 
 class RoomTypeIn(BaseModel):
@@ -46,6 +46,15 @@ class RequestIn(BaseModel):
         if self.room_ids is not None:
             return list(self.room_ids)
         return [c.room_id if c.room_id is not None else c.type.model_dump() for c in self.choices]
+
+
+class SlotRequestIn(BaseModel):
+    slot_id: int
+    wanted: list[int]
+
+
+class SlotRunIn(BaseModel):
+    dry_run: bool = False
 
 
 class ScheduleIn(BaseModel):

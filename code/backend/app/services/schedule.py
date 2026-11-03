@@ -66,8 +66,10 @@ def run_due(db: Session, now: datetime) -> MatchRun | None:
 
 
 def tick(db: Session, now: datetime, sender: mail.Sender | None) -> None:
+    from app.services.slots import expire_overdue_slots
 
     expire_overdue(db, now)
+    expire_overdue_slots(db, now)
     mail.send_reminders(db, now)
     run_due(db, now)
     mail.deliver(db, now, sender)
