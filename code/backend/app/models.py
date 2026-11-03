@@ -7,7 +7,7 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Optional
 
-from sqlalchemy import JSON, Boolean, DateTime, Float, ForeignKey, Integer, String, Text, UniqueConstraint
+from sqlalchemy import JSON, Boolean, DateTime, Float, ForeignKey, Index, Integer, String, Text, UniqueConstraint, text
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
 
@@ -112,8 +112,18 @@ class Seat(Base):
 
 
 # ---------------------------------------------------------------- requests
+ACTIVE = text("status IN ('open', 'matched')")
+
+
+def one_active_per(table: str, column: str) -> Index:
+    """The database itself allows only one open or matched request per person,
+    so two submits at the same moment cannot both get through."""
+    return Index(f"one_active_{table}", column, unique=True, sqlite_where=ACTIVE, postgresql_where=ACTIVE)
+
+
 class SwapRequest(Base):
     __tablename__ = "swap_requests"
+    __table_args__ = (one_active_per("swap_requests", "student_id"),)
     id: Mapped[int] = mapped_column(primary_key=True)
     tracking_id: Mapped[Optional[str]] = mapped_column(String(16), unique=True, nullable=True)
     student_id: Mapped[int] = mapped_column(ForeignKey("users.id"))
@@ -312,6 +322,7 @@ class LectureSlot(Base):
 
 class SlotRequest(Base):
     __tablename__ = "slot_requests"
+    __table_args__ = (one_active_per("slot_requests", "faculty_id"),)
     id: Mapped[int] = mapped_column(primary_key=True)
     tracking_id: Mapped[Optional[str]] = mapped_column(String(16), unique=True, nullable=True)
     faculty_id: Mapped[int] = mapped_column(ForeignKey("users.id"))

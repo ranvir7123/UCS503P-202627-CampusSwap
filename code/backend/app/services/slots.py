@@ -11,6 +11,7 @@ import threading
 from datetime import datetime, timedelta
 
 from sqlalchemy import select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.errors import DomainError
@@ -59,8 +60,12 @@ def submit(db: Session, faculty: Faculty, slot_id: int, wanted: list[int], now: 
 
     request = SlotRequest(faculty=faculty, slot=offered, status="open", created_at=now, updated_at=now,
                           preferences=[SlotPreference(rank=r, slot_id=i) for r, i in enumerate(wanted, start=1)])
-    db.add(request)
-    db.flush()
+    try:
+        with db.begin_nested():  # another submit may have landed a moment ago
+            db.add(request)
+            db.flush()
+    except IntegrityError:
+        raise DomainError(409, "already_active", "You already have an active request. Withdraw it first.") from None
     request.tracking_id = f"SL-{now.year}-{request.id:04d}"
     log(db, now, "slot_request_submitted",
         f"Slot request {request.tracking_id} submitted: offering {offered.course_code} on {offered.label}, "
@@ -173,6 +178,13 @@ def approve(db: Session, admin: Admin, cycle_id: int, now: datetime) -> SlotCycl
         raise DomainError(404, "no_cycle", "That slot swap does not exist.")
     if cycle.status != "confirmed":
         raise DomainError(409, "not_confirmed", "Only slot swaps confirmed by every member can be approved.")
+    stale = next((m for m in cycle.members if m.gives_slot.owner_id != m.request.faculty_id), None)
+    if stale is not None:  # the timetable changed after everyone confirmed
+        _dissolve(db, cycle, now, withdraw=set(), reason="the timetable changed after it was confirmed")
+        db.commit()  # kept even though the request itself fails
+        raise DomainError(409, "stale_swap",
+                          f"{stale.request.faculty.name} no longer teaches in {stale.gives_slot.label}, so this swap "
+                          "was cancelled. Everyone in it is back in the pool.")
     # Read every move first, then apply, so no slot is overwritten before it is read.
     moves = [(m.receives_slot, m.request.faculty, m.gives_slot.course_code, m.gives_slot.course_name)
              for m in cycle.members]

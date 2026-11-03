@@ -4,6 +4,7 @@ from __future__ import annotations
 from datetime import datetime
 
 from sqlalchemy import select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.errors import DomainError
@@ -46,8 +47,12 @@ def submit_request(db: Session, student: Student, choices: list[int | dict], now
     request = SwapRequest(
         student=student, seat=seat, status="open", created_at=now, updated_at=now, preferences=preferences,
     )
-    db.add(request)
-    db.flush()  # gives the request its id
+    try:
+        with db.begin_nested():  # another submit may have landed a moment ago
+            db.add(request)
+            db.flush()  # gives the request its id
+    except IntegrityError:
+        raise DomainError(409, "already_active", "You already have an active request. Withdraw it first.") from None
     request.tracking_id = f"CS-{now.year}-{request.id:04d}"
     log(db, now, "request_submitted",
         f"Request {request.tracking_id} submitted with {len(choices)} ranked choice(s).", student_id=student.id)

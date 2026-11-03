@@ -208,3 +208,40 @@ def test_faculty_on_the_student_tab_is_told_to_switch(app):
     c = TestClient(app)
     r = c.post("/api/auth/login", json={"email": "faculty1@thapar.edu", "password": DEMO_PASSWORD, "role": "student"})
     assert r.status_code == 403 and "Faculty" in r.json()["message"]
+
+
+# ---------------------------------------------------------------- safety (security review)
+def test_database_refuses_a_second_active_request_from_one_person(seeded):
+    """Two quick submits at once must not both get through the 'already active' check."""
+    from sqlalchemy.exc import IntegrityError
+
+    from app.models import Student, SwapRequest
+
+    f1 = demo(seeded, 1)
+    for slot in ("UCS503", "UCS414"):
+        seeded.add(SlotRequest(faculty=f1, slot=slot_of(seeded, slot), status="open", created_at=NOW, updated_at=NOW))
+    with pytest.raises(IntegrityError):
+        seeded.flush()
+    seeded.rollback()
+
+    student = seeded.scalar(select(Student).where(Student.email == "student1@thapar.edu"))
+    for _ in range(2):
+        seeded.add(SwapRequest(student=student, seat=student.seat, status="open", created_at=NOW, updated_at=NOW))
+    with pytest.raises(IntegrityError):
+        seeded.flush()
+    seeded.rollback()
+
+
+def test_approval_rechecks_that_each_teacher_still_owns_the_slot_they_give(seeded):
+    f1, f2, f3 = demo(seeded, 1), demo(seeded, 2), demo(seeded, 3)
+    se, ds = slot_of(seeded, "UCS503"), slot_of(seeded, "UCS301")
+    slots.submit(seeded, f1, se.id, [ds.id], NOW)
+    slots.submit(seeded, f2, ds.id, [se.id], NOW)
+    slots.run_round(seeded, admin(seeded), dry_run=False, now=NOW)
+    cycle = next(c for c in seeded.scalars(select(SlotCycle)) if len(c.members) == 2)
+    slots.accept(seeded, f1, cycle.id, NOW)
+    slots.accept(seeded, f2, cycle.id, NOW)
+    se.owner = f3  # the timetable changed after everyone confirmed
+    rejects("stale_swap", slots.approve, seeded, admin(seeded), cycle.id, NOW)
+    assert cycle.status == "dissolved"
+    assert (se.owner_id, ds.owner_id) == (f3.id, f2.id)  # nothing moved
