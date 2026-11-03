@@ -11,6 +11,7 @@
 """
 from __future__ import annotations
 
+import ipaddress
 import math
 from datetime import datetime, timedelta
 
@@ -33,9 +34,23 @@ def normalise_email(raw: str) -> str:
     return email
 
 
+def _network(ip: str) -> str:
+    """One IPv6 user can hold a whole /64 block, so count those as one address."""
+    try:
+        address = ipaddress.ip_address(ip)
+    except ValueError:
+        return ip
+    if address.version == 6:
+        return str(ipaddress.ip_network(f"{address}/64", strict=False))
+    return str(address)
+
+
 def _keys(email: str, ip: str | None) -> dict[str, str]:
-    ip = ip or "unknown"
-    return {"email_ip": f"email_ip:{email}|{ip}", "ip": f"ip:{ip}", "email": f"email:{email}"}
+    keys = {"email": f"email:{email}"}
+    if ip:  # without an address, only the overall per-email limit applies (no shared bucket)
+        net = _network(ip)
+        keys |= {"email_ip": f"email_ip:{email}|{net}", "ip": f"ip:{net}"}
+    return keys
 
 
 def check_not_blocked(db: Session, email: str, ip: str | None, now: datetime) -> None:
@@ -59,5 +74,7 @@ def record_failure(db: Session, email: str, ip: str | None, now: datetime) -> No
 
 
 def clear_failures(db: Session, email: str, ip: str | None) -> None:
+    """After a good sign-in, forget this email's failures (the per-address count stays)."""
     keys = _keys(email, ip)
-    db.execute(delete(LoginFailure).where(LoginFailure.key.in_([keys["email_ip"], keys["email"]])))
+    mine = [keys["email"]] + ([keys["email_ip"]] if "email_ip" in keys else [])
+    db.execute(delete(LoginFailure).where(LoginFailure.key.in_(mine)))

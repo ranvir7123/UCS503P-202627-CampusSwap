@@ -134,3 +134,22 @@ def test_guessing_spread_over_many_addresses_is_still_capped(seeded):
     with pytest.raises(DomainError) as err:
         signin.check_not_blocked(seeded, "student1@thapar.edu", "10.9.9.9", NOW)
     assert err.value.code == "too_many_attempts"
+
+
+def test_unknown_address_does_not_share_one_bucket(seeded):
+    from app.services import signin
+
+    for n in range(20):
+        signin.record_failure(seeded, f"nobody{n}@thapar.edu", None, NOW)
+    signin.check_not_blocked(seeded, "student1@thapar.edu", None, NOW)  # other emails are not blocked
+
+
+def test_ipv6_addresses_in_one_block_count_together(seeded):
+    from app.errors import DomainError
+    from app.services import signin
+
+    for n in range(5):
+        signin.record_failure(seeded, "student1@thapar.edu", f"2001:db8:1:2::{n + 1}", NOW)
+    with pytest.raises(DomainError):
+        signin.check_not_blocked(seeded, "student1@thapar.edu", "2001:db8:1:2::ffff", NOW)
+    signin.check_not_blocked(seeded, "student1@thapar.edu", "2001:db8:9:9::1", NOW)
