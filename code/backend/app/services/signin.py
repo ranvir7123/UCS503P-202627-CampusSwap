@@ -35,13 +35,22 @@ def normalise_email(raw: str) -> str:
 
 
 def _network(ip: str) -> str:
-    """One IPv6 user can hold a whole /64 block, so count those as one address."""
+    """One IPv6 user can hold a whole /64 block, so count those as one address.
+
+    IPv4 visitors can arrive written as IPv6 (::ffff:1.2.3.4, or 6to4 / Teredo
+    forms); those are turned back into the IPv4 address so they are not pooled.
+    Only real public IPv6 addresses are grouped.
+    """
     try:
         address = ipaddress.ip_address(ip)
     except ValueError:
         return ip
     if address.version == 6:
-        return str(ipaddress.ip_network(f"{address}/64", strict=False))
+        embedded = address.ipv4_mapped or address.sixtofour or (address.teredo[1] if address.teredo else None)
+        if embedded is not None:
+            return str(embedded)
+        if address.is_global:
+            return str(ipaddress.ip_network(f"{address}/64", strict=False))
     return str(address)
 
 

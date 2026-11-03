@@ -149,7 +149,15 @@ def test_ipv6_addresses_in_one_block_count_together(seeded):
     from app.services import signin
 
     for n in range(5):
-        signin.record_failure(seeded, "student1@thapar.edu", f"2001:db8:1:2::{n + 1}", NOW)
+        signin.record_failure(seeded, "student1@thapar.edu", f"2a01:4f8:1:2::{n + 1}", NOW)
     with pytest.raises(DomainError):
-        signin.check_not_blocked(seeded, "student1@thapar.edu", "2001:db8:1:2::ffff", NOW)
-    signin.check_not_blocked(seeded, "student1@thapar.edu", "2001:db8:9:9::1", NOW)
+        signin.check_not_blocked(seeded, "student1@thapar.edu", "2a01:4f8:1:2::ffff", NOW)
+    signin.check_not_blocked(seeded, "student1@thapar.edu", "2a01:4f8:9:9::1", NOW)
+
+
+def test_ipv4_clients_seen_as_mapped_ipv6_stay_separate(seeded):
+    from app.services import signin
+
+    for n in range(20):
+        signin.record_failure(seeded, f"nobody{n}@thapar.edu", "::ffff:203.0.113.9", NOW)
+    signin.check_not_blocked(seeded, "student1@thapar.edu", "::ffff:198.51.100.4", NOW)  # a different person
