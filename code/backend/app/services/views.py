@@ -165,7 +165,8 @@ def _cycle_view(cycle: SwapCycle, me: CycleMember) -> dict:
 
 # ---------------------------------------------------------------- admin
 def admin_overview(db: Session) -> dict:
-    latest_any = db.scalar(select(MatchRun).order_by(MatchRun.id.desc()).limit(1))
+    latest_any = db.scalar(select(MatchRun).where(MatchRun.algorithm.in_(("ttc", "pairwise")))
+                           .order_by(MatchRun.id.desc()).limit(1))  # room rounds only, not slot rounds
     latest_pairwise = db.scalar(select(MatchRun).where(MatchRun.algorithm == "pairwise")
                                 .order_by(MatchRun.id.desc()).limit(1))
     comparison = None

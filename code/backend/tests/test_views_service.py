@@ -95,6 +95,15 @@ def test_admin_overview_reflects_latest_run(seeded):
     assert "Chain found" in o["trace"]
 
 
+
+def test_room_trace_ignores_a_later_lecture_slot_round(seeded):
+    from app.services import slots
+    room_run = run(seeded)
+    slots.run_round(seeded, seeded.scalar(select(Admin)), dry_run=True, now=NOW)
+    o = admin_overview(seeded)
+    assert o["trace_run"]["id"] == room_run.id
+    assert o["trace"] == room_run.trace
+
 def test_admin_requests_rows(seeded):
     run(seeded)
     rows = admin_requests(seeded)
