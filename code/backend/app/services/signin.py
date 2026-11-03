@@ -13,16 +13,16 @@ from __future__ import annotations
 
 import ipaddress
 import math
-from datetime import datetime, timedelta
+from datetime import datetime
 
 from sqlalchemy import delete, select
 from sqlalchemy.orm import Session
 
+from app import timing
 from app.errors import DomainError
 from app.models import LoginFailure
 
 INSTITUTE_DOMAIN = "@thapar.edu"
-WINDOW = timedelta(minutes=15)
 LIMITS = {"email_ip": 5, "ip": 20, "email": 50}
 
 
@@ -61,14 +61,15 @@ def _keys(email: str, ip: str | None) -> dict[str, str]:
 
 
 def check_not_blocked(db: Session, email: str, ip: str | None, now: datetime) -> None:
-    since = now - WINDOW
+    window = timing.current().signin_window
+    since = now - window
     db.execute(delete(LoginFailure).where(LoginFailure.created_at <= since))
     for kind, key in _keys(email, ip).items():
         times = db.scalars(select(LoginFailure.created_at).where(
             LoginFailure.key == key, LoginFailure.created_at > since).order_by(LoginFailure.created_at)).all()
         over = len(times) - LIMITS[kind]
         if over >= 0:
-            unblocks_at = times[over] + WINDOW  # when enough old failures have aged out
+            unblocks_at = times[over] + window  # when enough old failures have aged out
             minutes = max(1, math.ceil((unblocks_at - now).total_seconds() / 60))
             raise DomainError(429, "too_many_attempts",
                               f"Too many failed sign-ins. Try again in {minutes} minute{'s' if minutes > 1 else ''}.")

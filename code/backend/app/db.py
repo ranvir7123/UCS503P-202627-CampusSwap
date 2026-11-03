@@ -22,6 +22,14 @@ def make_engine(url: str | None = None) -> Engine:
         cursor = dbapi_connection.cursor()
         cursor.execute("PRAGMA foreign_keys=ON")
         cursor.close()
+        dbapi_connection.isolation_level = None  # SQLAlchemy starts each transaction itself (below)
+
+    # Every transaction takes the write lock first. Two requests at once (a round and
+    # a staff click, a confirm and the deadline) then run one after the other, and the
+    # second always reads what the first saved, never an older copy.
+    @event.listens_for(engine, "begin")
+    def _begin_immediate(connection):
+        connection.exec_driver_sql("BEGIN IMMEDIATE")
 
     return engine
 

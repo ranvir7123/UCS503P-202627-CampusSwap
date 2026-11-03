@@ -15,9 +15,9 @@ from email.message import EmailMessage
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from app import timing
 from app.models import CycleMember, Email, SwapCycle, User
 
-REMIND_BEFORE = timedelta(hours=12)
 IST = timedelta(hours=5, minutes=30)
 MAX_ATTEMPTS = 5
 Sender = Callable[[str, str, str], None]  # (to, subject, body)
@@ -51,10 +51,10 @@ def match_found(db: Session, now: datetime, member: CycleMember) -> None:
 
 
 def send_reminders(db: Session, now: datetime) -> int:
-    """One reminder to each member who has not answered, once 12 hours or less are left."""
+    """One reminder to each member who has not answered, once 12 hours (demo: 2 minutes) or less are left."""
     pending = db.scalars(
         select(CycleMember).join(SwapCycle).where(
-            SwapCycle.status == "proposed", SwapCycle.deadline > now, SwapCycle.deadline <= now + REMIND_BEFORE,
+            SwapCycle.status == "proposed", SwapCycle.deadline > now, SwapCycle.deadline <= now + timing.current().remind_before,
             CycleMember.response == "pending", CycleMember.reminded_at.is_(None))
     ).all()
     for member in pending:
@@ -72,18 +72,26 @@ def deliver(db: Session, now: datetime, sender: Sender | None) -> int:
     """Hand queued mail to the mail server. Returns how many were sent."""
     if sender is None:
         return 0
+    queued = [(e.id, e.to_address, e.subject, e.body) for e in db.scalars(
+        select(Email).where(Email.status == "queued", Email.attempts < MAX_ATTEMPTS).order_by(Email.id))]
+    # Save everything first: talking to the mail server can take seconds, and
+    # nobody else can save anything while this session holds the write lock.
+    db.commit()
     sent = 0
-    for email in db.scalars(select(Email).where(Email.status == "queued", Email.attempts < MAX_ATTEMPTS)
-                            .order_by(Email.id)).all():
-        email.attempts += 1
+    for email_id, to, subject, body in queued:
         try:
-            sender(email.to_address, email.subject, email.body)
+            sender(to, subject, body)
+            error = None
         except Exception as exc:  # noqa: BLE001 - any failure: keep it queued and record why
-            email.error = f"{type(exc).__name__}: {exc}"[:300]
-            continue
-        email.status, email.sent_at, email.error = "sent", now, None
-        sent += 1
-    db.flush()
+            error = f"{type(exc).__name__}: {exc}"[:300]
+        email = db.get(Email, email_id)
+        email.attempts += 1
+        if error:
+            email.error = error
+        else:
+            email.status, email.sent_at, email.error = "sent", now, None
+            sent += 1
+        db.commit()
     return sent
 
 

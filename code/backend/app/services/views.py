@@ -8,6 +8,7 @@ from datetime import datetime, time, timedelta
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
+from app import timing
 from app.models import CycleMember, Event, Hostel, MatchRun, Room, Student, SwapCycle, SwapRequest
 
 MILESTONES = [
@@ -82,6 +83,7 @@ def public_stats(db: Session, now: datetime) -> dict:
         "hostels": db.scalar(select(func.count(Hostel.id))),
         "requests_per_day": per_day,
         "last_run": run_summary(_latest_saved_run(db)),
+        "timing": timing.current().view(),
     }
 
 

@@ -2,6 +2,7 @@
 
     python code/backend/run.py            # keep existing data (loads demo data the first time)
     python code/backend/run.py --reset    # wipe the database and reload fresh demo data
+    python code/backend/run.py --reset --demo   # live demo: hours become minutes, nothing to wait for
     python code/backend/run.py --cert cert.pem --key key.pem   # serve over HTTPS (Secure cookie)
 
 Then open http://127.0.0.1:8000 (API docs at /docs).
@@ -28,6 +29,8 @@ def main() -> None:
     parser.add_argument("--port", type=int, default=8000)
     parser.add_argument("--cert", help="HTTPS certificate file (PEM); turns on HTTPS-only mode")
     parser.add_argument("--key", help="private key file (PEM) for --cert")
+    parser.add_argument("--demo", action="store_true",
+                        help="live demo: 3 minutes to confirm, reminders 2 minutes before, rounds every N minutes")
     args = parser.parse_args()
     if bool(args.cert) != bool(args.key):
         parser.error("--cert and --key must be given together")
@@ -39,12 +42,15 @@ def main() -> None:
         sys.exit(f"{DEFAULT_DB_PATH.name} was made by an older version of CampusSwap. "
                  "Run again with --reset to rebuild it with fresh demo data.")
     https = bool(args.cert)
-    app = create_app(secure=True if https else None, background=True)
+    app = create_app(secure=True if https else None, background=True, demo=args.demo)
     if fresh:
         with app.state.session_factory() as db:
             seed(db)
         print(f"Loaded demo data into {DEFAULT_DB_PATH.name} (password for every demo account: campus123)")
     scheme = "https" if https else "http"
+    if args.demo:
+        print("Demo mode: 3 minutes to confirm a swap, reminder emails 2 minutes before, "
+              "automatic rounds counted in minutes, checks every 5 seconds")
     print(f"CampusSwap running at {scheme}://{args.host}:{args.port}   API docs: {scheme}://{args.host}:{args.port}/docs")
     uvicorn.run(app, host=args.host, port=args.port, ssl_certfile=args.cert, ssl_keyfile=args.key)
 

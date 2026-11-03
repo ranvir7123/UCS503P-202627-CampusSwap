@@ -17,7 +17,7 @@ What the prototype does **not** do yet, so nobody claims more than is built.
 | The PDF approval form exists for room swaps only, not for lecture slot swaps | Slot approval is recorded in CampusSwap and in the event log | Add a slot version of the form |
 | No sign-up page and no password change | Demo accounts are made by `seed.py`; real accounts would come from the institute login | Comes with single sign-on |
 | The 1:1 comparison uses a simple greedy pairing | It is only a baseline for comparison | Could use a maximum matching for a stricter baseline |
-| No automated browser tests | The server and the engine have 165 automated tests; the five pages are only checked by hand | Add browser tests (e.g. Playwright) |
+| No automated browser tests | The server and the engine have 175 automated tests; the five pages are only checked by hand | Add browser tests (e.g. Playwright) |
 | The app runs on a laptop, not on a public server | The demo only needs one machine | Deploy behind HTTPS (`CAMPUSSWAP_SECURE=1`) |
 
 ## Phase 2 (from the proposal)

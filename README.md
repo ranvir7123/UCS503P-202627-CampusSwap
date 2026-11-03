@@ -31,6 +31,10 @@ Then open <http://127.0.0.1:8000>. Password for every demo account: `campus123`
 on the Student tab; `faculty1@thapar.edu` to `faculty3@thapar.edu` on the Faculty tab).
 All accounts are listed in [docs/demo-accounts.md](docs/demo-accounts.md).
 
+Showing it live? Add `--demo` (`run.py --reset --demo`): every wait becomes minutes instead
+of hours (3 minutes to confirm a swap), so a whole swap, its reminder email and an
+automatic round fit into a 5-minute demo. See [docs/showcase.md](docs/showcase.md).
+
 If you already have a `campusswap.db` from an older version, `run.py` stops and asks you
 to run it again with `--reset`, which rebuilds the database with fresh demo data.
 

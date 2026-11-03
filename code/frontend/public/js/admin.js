@@ -8,7 +8,7 @@ import { $, $$, esc, formatDateTime, html, ordinal, plural, raw, setBusy, toast,
 
 const PAGE_SIZE = 10;
 const EMAILS_SHOWN = 10;
-const MAX_EVERY_HOURS = 336; // the server allows 1 to 14 days
+const MAX_EVERY_HOURS = 336; // the server allows 1 to 336 steps (14 days of hours)
 const TABS = [
   ["all", "All"], ["open", "In pool"], ["matched", "In a swap"],
   ["awaiting", "Awaiting approval"], ["completed", "Approved"], ["withdrawn", "Withdrawn"],
@@ -20,6 +20,7 @@ const state = {
   rooms: { overview: null, rows: [], loaded: false, filter: "all", search: "", page: 1, open: null },
   slots: { board: null, rows: [], loaded: false, loading: false, filter: "all", search: "", page: 1, open: null },
   schedule: null,
+  timing: { demo: false, confirm: "48 hours", reminder: "12 hours" }, // replaced by the server's times at start
   emails: { data: null, showAll: false, open: new Set() },
 };
 
@@ -379,6 +380,7 @@ async function loadSlots({ keepTrace = false } = {}) {
 // ---------------------------------------------------------------- automatic rounds
 function renderSchedule() {
   const s = state.schedule;
+  const unit = s.unit || "hour";
   const next = s.enabled && s.next_run_at ? `Next round: ${formatDateTime(s.next_run_at)} IST` : "Off";
   $("#schedule-body").innerHTML = html`<form class="flex flex-col gap-4" id="schedule-form" novalidate>
     <div class="flex items-center justify-between gap-4">
@@ -389,10 +391,10 @@ function renderSchedule() {
         <span class="absolute top-0.5 left-0.5 w-[18px] h-[18px] rounded-full transition-transform ${raw(s.enabled ? "translate-x-5 bg-brass-ink" : "bg-ink-2")}"></span></button>
     </div>
     <div>
-      <label class="label" for="sched-hours">Every how many hours</label>
+      <label class="label" for="sched-hours">Every how many ${unit}s</label>
       <div class="flex items-center gap-3 flex-wrap">
         <input class="field w-28" id="sched-hours" type="number" inputmode="numeric" min="1" max="${MAX_EVERY_HOURS}" step="1" value="${s.every_hours}" aria-describedby="sched-hours-hint sched-error"/>
-        <span class="text-xs faint" id="sched-hours-hint">1 to ${MAX_EVERY_HOURS} hours (14 days)</span>
+        <span class="text-xs faint" id="sched-hours-hint">1 to ${MAX_EVERY_HOURS} ${unit}s${unit === "hour" ? " (14 days)" : ""}</span>
       </div>
       <p class="text-xs text-bad mt-1.5" id="sched-error" hidden></p>
     </div>
@@ -418,7 +420,7 @@ async function saveSchedule(e) {
   const enabled = $("#sched-on").getAttribute("aria-checked") === "true";
   const hours = Number(hoursEl.value);
   if (!Number.isInteger(hours) || hours < 1 || hours > MAX_EVERY_HOURS) {
-    errEl.textContent = `Enter a whole number of hours from 1 to ${MAX_EVERY_HOURS}.`;
+    errEl.textContent = `Enter a whole number of ${state.schedule.unit || "hour"}s from 1 to ${MAX_EVERY_HOURS}.`;
     errEl.hidden = false;
     hoursEl.setAttribute("aria-invalid", "true");
     hoursEl.focus();
@@ -429,7 +431,7 @@ async function saveSchedule(e) {
     state.schedule = await api("/api/admin/schedule", { method: "PUT", body: { enabled, every_hours: hours } });
     renderSchedule();
     toast(enabled ? "Automatic rounds are on" : "Automatic rounds are off",
-      enabled ? `A saved round runs every ${plural(hours, "hour")}. Next: ${formatDateTime(state.schedule.next_run_at)} IST.` : "Rounds run only when someone presses Run.");
+      enabled ? `A saved round runs every ${plural(hours, state.schedule.unit || "hour")}. Next: ${formatDateTime(state.schedule.next_run_at)} IST.` : "Rounds run only when someone presses Run.");
   } catch (error) {
     done();
     errEl.textContent = error.message;
@@ -452,7 +454,7 @@ function renderEmails() {
   if (!data.emails.length) {
     $("#emails-body").innerHTML = html`<div class="card-pad flex flex-col gap-4">${raw(notice)}
       <div class="flex flex-col items-center text-center gap-2 py-6">${raw(icon("mail", 28, "text-ink-3"))}
-      <p class="text-sm muted max-w-sm">No emails yet. CampusSwap writes one to each person when a round puts them in a swap, and a reminder 12 hours before their deadline.</p></div></div>`;
+      <p class="text-sm muted max-w-sm">No emails yet. CampusSwap writes one to each person when a round puts them in a swap, and a reminder ${state.timing.reminder} before their deadline.</p></div></div>`;
     return;
   }
   const list = showAll ? data.emails : data.emails.slice(0, EMAILS_SHOWN);
@@ -495,7 +497,7 @@ function setRunLabels() {
 async function runRoomRound() {
   if (state.busy) return;
   const dry = $("#rooms-dry").checked;
-  if (!dry && !confirm("Run a real matching round now? Students placed in swap chains get 48 hours to confirm, and an email is written to each of them.")) return;
+  if (!dry && !confirm(`Run a real matching round now? Students placed in swap chains get ${state.timing.confirm} to confirm, and an email is written to each of them.`)) return;
   state.busy = true;
   const done = setBusy($("#btn-run"), "Running round…");
   $("#btn-compare").disabled = true;
@@ -537,7 +539,7 @@ async function compare() {
 async function runSlotRound() {
   if (state.busy) return;
   const dry = $("#slots-dry").checked;
-  if (!dry && !confirm("Run a real slot round now? Teachers placed in swap chains get 48 hours to confirm, and an email is written to each of them.")) return;
+  if (!dry && !confirm(`Run a real slot round now? Teachers placed in swap chains get ${state.timing.confirm} to confirm, and an email is written to each of them.`)) return;
   state.busy = true;
   const done = setBusy($("#btn-slot-run"), "Running slot round…");
   try {
@@ -557,8 +559,9 @@ async function runSlotRound() {
 
 async function approve(button, kind, cycleId) {
   const rooms = kind === "room";
+  if (state.busy) return; // a round is running: its result may change this swap
   if (!confirm(rooms ? `Approve swap #${cycleId}? The students' rooms change in CampusSwap's records.` : `Approve slot swap #${cycleId}? The lecture slots change hands in the timetable.`)) return;
-  setBusy(button, "Approving…");
+  const done = setBusy(button, "Approving…");
   const view = rooms ? "rooms" : "slots";
   tableNotice(view, null);
   try {
@@ -568,6 +571,8 @@ async function approve(button, kind, cycleId) {
   } catch (error) {
     tableNotice(view, error); // e.g. stale_swap: the swap was cancelled, the others are back in the pool
     toastError(error);
+  } finally {
+    done(); // the reload below redraws the table; if it fails, the button still comes back
   }
   await (rooms ? loadRooms({ keepTrace: true }) : loadSlots({ keepTrace: true }));
 }
@@ -671,8 +676,18 @@ function wire() {
   window.addEventListener("hashchange", showView);
 }
 
+// Demo mode (run.py --demo) shortens every wait; say so and use the server's times in the text.
+function applyTiming() {
+  const t = state.timing;
+  for (const el of $$("[data-confirm-time]")) el.textContent = t.confirm;
+  $("#demo-note").hidden = !t.demo;
+  if (t.demo) $("#demo-note-text").textContent = `Demo mode: times are shortened. Chains have ${t.confirm} to confirm, the reminder email goes ${t.reminder} before the deadline, and automatic rounds count in minutes.`;
+}
+
 const me = await requireUser("admin");
 fillHeader(me);
+state.timing = await api("/api/public/stats").then((s) => s.timing || state.timing, () => state.timing);
+applyTiming();
 wire();
 setRunLabels();
 showView();

@@ -167,6 +167,10 @@ async function loadStats() {
       $("[data-stat=yield]").className = "text-base font-semibold text-ink-2 leading-8";
     }
     drawSparkline(s.requests_per_day);
+    if (s.timing?.demo) {
+      $("#demo-mode-text").textContent = `Demo mode: swaps have ${s.timing.confirm} to confirm.`;
+      $("#demo-mode").hidden = false;
+    }
   } catch {
     for (const el of box.querySelectorAll("dl, figure")) el.hidden = true;
     $("#stats-error").hidden = false;

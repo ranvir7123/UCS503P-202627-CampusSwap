@@ -8,12 +8,13 @@ they receive. The time and hall of each slot never change.
 from __future__ import annotations
 
 import threading
-from datetime import datetime, timedelta
+from datetime import datetime
 
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
+from app import timing
 from app.errors import DomainError
 from app.models import (Admin, Faculty, LectureSlot, MatchRun, SlotCycle, SlotCycleMember, SlotPreference,
                         SlotRequest)
@@ -22,7 +23,6 @@ from app.services.events import log
 from engine import Participant, cycle_length_counts, match_yield, top_trading_cycles
 
 MAX_CHOICES = 5
-CONFIRM_WINDOW = timedelta(hours=48)
 ACTIVE_STATUSES = ("open", "matched")
 _run_lock = threading.Lock()
 
@@ -128,7 +128,7 @@ def run_round(db: Session, admin: Admin, dry_run: bool, now: datetime) -> MatchR
 
 
 def _save_cycle(db, run, members, by_id, assignment, ranks, now) -> None:
-    cycle = SlotCycle(match_run_id=run.id, status="proposed", deadline=now + CONFIRM_WINDOW, created_at=now)
+    cycle = SlotCycle(match_run_id=run.id, status="proposed", deadline=now + timing.current().confirm_window, created_at=now)
     db.add(cycle)
     for position, pid in enumerate(members):
         request = by_id[pid]

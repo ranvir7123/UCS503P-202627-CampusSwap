@@ -12,7 +12,9 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.httpsredirect import HTTPSRedirectMiddleware
 from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
+from sqlalchemy.exc import OperationalError
 
+from app import timing
 from app.db import make_engine, make_session_factory
 from app.errors import DomainError
 from app.clock import utcnow
@@ -39,6 +41,13 @@ async def _domain_error(_request: Request, exc: DomainError) -> JSONResponse:
     return JSONResponse(status_code=exc.status, content={"error": exc.code, "message": exc.message})
 
 
+async def _database_busy(_request: Request, exc: OperationalError) -> JSONResponse:
+    if "locked" not in str(exc.orig):
+        raise exc
+    return JSONResponse(status_code=503, content={"error": "busy",
+                                                  "message": "CampusSwap is busy saving something else. Try again in a moment."})
+
+
 async def _invalid_input(_request: Request, exc: RequestValidationError) -> JSONResponse:
     first = exc.errors()[0] if exc.errors() else {}
     field = ".".join(str(part) for part in first.get("loc", ())[1:])
@@ -47,7 +56,6 @@ async def _invalid_input(_request: Request, exc: RequestValidationError) -> JSON
                                                   "message": f"{field}: {message}" if field else message})
 
 
-TICK_SECONDS = 30
 _log = logging.getLogger("campusswap")
 
 
@@ -64,7 +72,7 @@ async def _ticker(app: FastAPI) -> None:
             await asyncio.to_thread(_tick_once, app)
         except Exception:  # keep the loop alive; the next tick tries again
             _log.exception("background tick failed")
-        await asyncio.sleep(TICK_SECONDS)
+        await asyncio.sleep(timing.current().tick_seconds)
 
 
 def secure_from_env() -> bool:
@@ -73,9 +81,11 @@ def secure_from_env() -> bool:
 
 
 def create_app(database_url: str | None = None, frontend_dir: Path | None = FRONTEND_DIR,
-               secure: bool | None = None, background: bool = False) -> FastAPI:
+               secure: bool | None = None, background: bool = False, demo: bool = False) -> FastAPI:
     """secure=True: HTTPS only (plain HTTP is redirected) and the login cookie is marked Secure.
-    background=True: run the scheduler tick every 30 s (rounds, reminders, mail). Off in tests."""
+    background=True: run the scheduler tick every 30 s (rounds, reminders, mail). Off in tests.
+    demo=True: hours become minutes (app/timing.py) so a live demo needs no waiting."""
+    timing.use(timing.DEMO if demo else timing.NORMAL)
     secure = secure_from_env() if secure is None else secure
     engine = make_engine(database_url)
     Base.metadata.create_all(engine)
@@ -95,7 +105,8 @@ def create_app(database_url: str | None = None, frontend_dir: Path | None = FRON
         version="0.1.0",
         description="Hostel room exchange using Top Trading Cycles (UCS503P prototype).",
         lifespan=lifespan,
-        exception_handlers={DomainError: _domain_error, RequestValidationError: _invalid_input},
+        exception_handlers={DomainError: _domain_error, RequestValidationError: _invalid_input,
+                            OperationalError: _database_busy},
     )
     app.state.session_factory = make_session_factory(engine)
     app.state.secure = secure

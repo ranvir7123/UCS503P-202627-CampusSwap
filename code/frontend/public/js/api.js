@@ -45,8 +45,24 @@ export async function requireUser(role) {
       location.replace("/");
       return new Promise(() => {});
     }
-    throw error;
+    showStartError(error);
+    return new Promise(() => {}); // the page waits for Try again (a reload)
   }
+}
+
+// The server could not be reached or failed on the very first check: say so
+// instead of leaving the page on its loading placeholders.
+function showStartError(error) {
+  const box = document.createElement("div");
+  box.className = "notice-bad items-start";
+  box.setAttribute("role", "alert");
+  box.innerHTML = `<span class="material-symbols-outlined text-[20px] text-bad shrink-0" aria-hidden="true">error</span>
+    <div class="flex flex-col gap-2 min-w-0"><p class="font-semibold text-ink">Couldn't reach CampusSwap</p>
+    <p class="break-words" data-message></p>
+    <button class="btn-secondary btn-sm self-start" type="button">Try again</button></div>`;
+  box.querySelector("[data-message]").textContent = `${error.message || "The server did not answer."} Check your connection and try again.`;
+  box.querySelector("button").addEventListener("click", () => location.reload());
+  document.querySelector("main").replaceChildren(box);
 }
 
 export async function logout() {

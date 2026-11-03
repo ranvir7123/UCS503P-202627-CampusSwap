@@ -6,11 +6,11 @@ Run everything from the repository root:
 .venv\Scripts\python -m pytest
 ```
 
-There are **165 tests**. They live in `code/backend/tests/`. The last run, from the
+There are **175 tests**. They live in `code/backend/tests/`. The last run, from the
 repository root with `.venv/Scripts/python -m pytest -q`, ended with:
 
 ```
-165 passed, 1 warning in 32.50s
+175 passed, 1 warning in 40.90s
 ```
 
 The one warning comes from the test client library (Starlette suggests a newer HTTP

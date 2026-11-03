@@ -34,7 +34,7 @@ you started it.
 | Server and all rules | `code/backend/app/` |
 | The matching algorithm (Top Trading Cycles) | `code/backend/engine/` |
 | Demo data (4 hostels, 72 rooms, 144 students, 1 warden, 8 teachers with 16 lecture slots) | `code/backend/seed.py` |
-| 165 automated tests | `code/backend/tests/` |
+| 175 automated tests | `code/backend/tests/` |
 | 4 UML diagrams: pictures | `docs/diagrams/*.png` and `*.svg` |
 | 4 UML diagrams: source text | `diagrams/*.puml` |
 | Diagrams with explanations | Docs site → **Diagrams** |
@@ -116,6 +116,27 @@ If starting **without** `--reset` stops with a message that `campusswap.db` *was
 older version of CampusSwap*, that file is from before the latest changes. Run with
 `--reset` once to rebuild it.
 
+## Live demo mode (no waiting)
+
+For showing CampusSwap live, start it with `--demo` as well:
+
+```powershell
+.venv\Scripts\python code/backend/run.py --reset --demo
+```
+
+The rules stay the same; only the clock is shorter, so the whole story fits in a 5-minute demo:
+
+| | Normal | Demo mode |
+|---|---|---|
+| Time to confirm a swap | 48 hours | 3 minutes |
+| Reminder email | 12 hours before the deadline | 2 minutes before (1 minute after the round) |
+| Automatic rounds | every N hours | every N minutes |
+| Sign-in lock after too many wrong passwords | 15 minutes | 1 minute |
+| Background check | every 30 seconds | every 5 seconds |
+
+The sign-in page and the staff page both say *Demo mode* while it is on, and the staff
+page shows the shorter times. Never use `--demo` for real students.
+
 ---
 
 ## 6. Accounts
@@ -175,7 +196,7 @@ differs slightly, look for the button with the same meaning.
     .venv\Scripts\python -m pytest
     ```
 
-    It should end with **`165 passed`** (plus one warning from a test library).
+    It should end with **`175 passed`** (plus one warning from a test library).
 
 ### Step 1: the pitch (30 seconds, docs site home page)
 
@@ -244,7 +265,7 @@ approves, and the rooms change."*
 
 - **Diagrams:** docs site → **Diagrams** (Use Case, Class, Sequence, Activity, each with the
   reasons for its relationships).
-- **Tests:** the PowerShell window with **165 passed**, and the GitHub **Actions** page with green ticks.
+- **Tests:** the PowerShell window with **175 passed**, and the GitHub **Actions** page with green ticks.
 - **Code:** show the folders on GitHub: `code/backend/engine` (the algorithm),
   `code/backend/app` (server), `code/frontend` (pages).
 - **API page:** <http://127.0.0.1:8000/docs> lists every endpoint (this page needs internet).
@@ -361,7 +382,7 @@ browser's phone view instead: press `F12` → click the phone icon (**Toggle dev
 cd C:\dev\Swe-Project                                   # go to the project
 .venv\Scripts\python code/backend/run.py                # start the app
 .venv\Scripts\python code/backend/run.py --reset        # start fresh (wipes all changes)
-.venv\Scripts\python -m pytest                          # run all 165 tests
+.venv\Scripts\python -m pytest                          # run all 175 tests
 .venv\Scripts\python diagrams/render.py                 # re-draw the diagrams
 ```
 

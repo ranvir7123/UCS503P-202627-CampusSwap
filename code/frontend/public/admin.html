@@ -22,6 +22,7 @@
 </div></header>
 
 <main class="max-w-6xl mx-auto px-4 sm:px-6 py-6 sm:py-8 flex flex-col gap-8">
+  <div class="notice-warn items-start" id="demo-note" hidden><span class="material-symbols-outlined text-[20px] text-brass shrink-0" aria-hidden="true">timer</span><span id="demo-note-text"></span></div>
   <!-- Phone only: the top bar hides its links below 640px, so the two views are switched here. -->
   <nav class="sm:hidden grid grid-cols-2 gap-1 p-1 rounded-lg bg-sunken border border-line" aria-label="Views">
     <a class="nav-link justify-center" href="#rooms" data-view-link="rooms">Room swaps</a>
@@ -107,7 +108,7 @@
       <div class="card card-pad flex flex-col gap-4">
         <h2 class="section-title">How rounds work</h2>
         <ul class="flex flex-col gap-3 text-sm muted">
-          <li class="flex gap-3"><span class="material-symbols-outlined text-[18px] text-ink-3 shrink-0" aria-hidden="true">schedule</span><span>Everyone in a chain has <strong class="text-ink font-semibold">48 hours</strong> to confirm. If anyone declines or does not answer, the chain is cancelled and the others go back to the pool.</span></li>
+          <li class="flex gap-3"><span class="material-symbols-outlined text-[18px] text-ink-3 shrink-0" aria-hidden="true">schedule</span><span>Everyone in a chain has <strong class="text-ink font-semibold" data-confirm-time>48 hours</strong> to confirm. If anyone declines or does not answer, the chain is cancelled and the others go back to the pool.</span></li>
           <li class="flex gap-3"><span class="material-symbols-outlined text-[18px] text-ink-3 shrink-0" aria-hidden="true">apartment</span><span>Students can only rank rooms in hostels they are allowed to live in. This is checked when they send their request, so a round never suggests a move that breaks hostel rules.</span></li>
           <li class="flex gap-3"><span class="material-symbols-outlined text-[18px] text-ink-3 shrink-0" aria-hidden="true">verified</span><span>When everyone has confirmed, the swap waits for your approval. Approving changes the rooms in CampusSwap's records, and the approval form (PDF) becomes ready to print.</span></li>
         </ul>

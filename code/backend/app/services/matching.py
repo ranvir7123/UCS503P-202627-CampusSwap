@@ -2,11 +2,12 @@
 from __future__ import annotations
 
 import threading
-from datetime import datetime, timedelta
+from datetime import datetime
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from app import timing
 from app.errors import DomainError
 from app.models import Admin, CycleMember, MatchRun, Seat, SwapCycle, SwapRequest
 from app.services.cycles import expire_overdue
@@ -14,7 +15,6 @@ from app.services import mail
 from app.services.events import log
 from engine import MatchResult, Participant, cycle_length_counts, match_yield, pairwise_swaps, top_trading_cycles
 
-CONFIRM_WINDOW = timedelta(hours=48)
 ALGORITHMS = {"ttc": top_trading_cycles, "pairwise": pairwise_swaps}
 _run_lock = threading.Lock()  # only one matching round at a time
 
@@ -83,7 +83,7 @@ def _received_rank(db: Session, request: SwapRequest, seat_id: int) -> int:
 
 
 def _save_cycle(db, run, members, by_id, result: MatchResult, ranks, now) -> None:
-    cycle = SwapCycle(match_run=run, status="proposed", deadline=now + CONFIRM_WINDOW, created_at=now)
+    cycle = SwapCycle(match_run=run, status="proposed", deadline=now + timing.current().confirm_window, created_at=now)
     db.add(cycle)
     for position, pid in enumerate(members):
         request = by_id[pid]

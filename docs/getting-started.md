@@ -43,6 +43,9 @@ project, so it doesn't clash with anything else on your laptop.
 - While it runs, a **background check every 30 seconds** closes swaps whose 48-hour
   deadline has passed, queues reminder emails, runs an automatic matching round if one is
   due, and hands queued emails to the mail server (if one is set up).
+- Add `--demo` for a live demo: 3 minutes to confirm instead of 48 hours, reminders 2
+  minutes before the deadline, automatic rounds counted in minutes, a check every 5
+  seconds. The pages say *Demo mode* while it is on.
 
 ### HTTPS (optional)
 
