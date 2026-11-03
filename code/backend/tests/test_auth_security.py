@@ -161,3 +161,13 @@ def test_ipv4_clients_seen_as_mapped_ipv6_stay_separate(seeded):
     for n in range(20):
         signin.record_failure(seeded, f"nobody{n}@thapar.edu", "::ffff:203.0.113.9", NOW)
     signin.check_not_blocked(seeded, "student1@thapar.edu", "::ffff:198.51.100.4", NOW)  # a different person
+
+
+def test_private_ipv6_addresses_in_one_block_count_together(seeded):
+    from app.errors import DomainError
+    from app.services import signin
+
+    for n in range(5):
+        signin.record_failure(seeded, "student1@thapar.edu", f"fd00:1:2:3::{n + 1}", NOW)
+    with pytest.raises(DomainError):
+        signin.check_not_blocked(seeded, "student1@thapar.edu", "fd00:1:2:3::99", NOW)

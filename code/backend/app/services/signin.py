@@ -39,7 +39,6 @@ def _network(ip: str) -> str:
 
     IPv4 visitors can arrive written as IPv6 (::ffff:1.2.3.4, or 6to4 / Teredo
     forms); those are turned back into the IPv4 address so they are not pooled.
-    Only real public IPv6 addresses are grouped.
     """
     try:
         address = ipaddress.ip_address(ip)
@@ -49,8 +48,7 @@ def _network(ip: str) -> str:
         embedded = address.ipv4_mapped or address.sixtofour or (address.teredo[1] if address.teredo else None)
         if embedded is not None:
             return str(embedded)
-        if address.is_global:
-            return str(ipaddress.ip_network(f"{address}/64", strict=False))
+        return str(ipaddress.ip_network(f"{address}/64", strict=False))
     return str(address)
 
 
