@@ -1,0 +1,211 @@
+\multicolumn{3}{@{}l}{\textbf{\texttt{test\_api.py}}} \\ \midrule
+\texttt{test\_bad\_input\_gets\_a\_readable\_error} & 0.234 & Pass \\
+\texttt{test\_full\_swap\_story\_over\_http} & 1.157 & Pass \\
+\texttt{test\_home\_page\_is\_served} & 0.277 & Pass \\
+\texttt{test\_login\_sets\_session\_cookie\_and\_me\_works} & 0.259 & Pass \\
+\texttt{test\_logout\_ends\_the\_session} & 0.226 & Pass \\
+\texttt{test\_pages\_need\_login} & 0.182 & Pass \\
+\texttt{test\_pages\_tell\_browsers\_to\_check\_for\_updates} & 0.215 & Pass \\
+\texttt{test\_public\_stats\_need\_no\_login} & 0.162 & Pass \\
+\texttt{test\_rule\_errors\_come\_back\_as\_json} & 0.253 & Pass \\
+\texttt{test\_status\_answers\_without\_error\_when\_logged\_out} & 0.168 & Pass \\
+\texttt{test\_student\_cannot\_use\_admin\_routes} & 0.365 & Pass \\
+\texttt{test\_student\_using\_staff\_tab\_is\_told\_to\_switch} & 0.161 & Pass \\
+\texttt{test\_unknown\_email\_gets\_the\_same\_answer} & 0.156 & Pass \\
+\texttt{test\_withdraw\_over\_http} & 0.279 & Pass \\
+\texttt{test\_wrong\_password\_is\_rejected} & 0.156 & Pass \\
+\midrule
+\multicolumn{3}{@{}l}{\textbf{\texttt{test\_auth\_security.py}}} \\ \midrule
+\texttt{test\_failures\_from\_another\_address\_do\_not\_lock\_the\_owner} & 0.147 & Pass \\
+\texttt{test\_five\_wrong\_passwords\_lock\_that\_email} & 0.492 & Pass \\
+\texttt{test\_guessing\_spread\_over\_many\_addresses\_is\_still\_capped} & 0.186 & Pass \\
+\texttt{test\_institute\_email\_in\_capitals\_is\_accepted} & 0.228 & Pass \\
+\texttt{test\_ipv4\_clients\_seen\_as\_mapped\_ipv6\_stay\_separate} & 0.161 & Pass \\
+\texttt{test\_ipv6\_addresses\_in\_one\_block\_count\_together} & 0.179 & Pass \\
+\texttt{test\_local\_mode\_cookie\_is\_not\_secure} & 0.235 & Pass \\
+\texttt{test\_lock\_lifts\_after\_fifteen\_minutes} & 0.568 & Pass \\
+\texttt{test\_lock\_on\_one\_email\_does\_not\_block\_another} & 0.656 & Pass \\
+\texttt{test\_lookalike\_domain\_is\_refused} & 0.184 & Pass \\
+\texttt{test\_many\_failures\_from\_one\_address\_block\_that\_address} & 1.562 & Pass \\
+\texttt{test\_private\_ipv6\_addresses\_in\_one\_block\_count\_together} & 0.259 & Pass \\
+\texttt{test\_secure\_mode\_marks\_cookie\_secure\_and\_sends\_hsts} & 0.218 & Pass \\
+\texttt{test\_secure\_mode\_redirects\_plain\_http\_to\_https} & 0.249 & Pass \\
+\texttt{test\_server\_refuses\_non\_institute\_email} & 0.302 & Pass \\
+\texttt{test\_successful\_sign\_in\_clears\_earlier\_failures} & 0.830 & Pass \\
+\texttt{test\_unknown\_address\_does\_not\_share\_one\_bucket} & 0.150 & Pass \\
+\texttt{test\_unknown\_emails\_are\_limited\_too} & 0.523 & Pass \\
+\midrule
+\multicolumn{3}{@{}l}{\textbf{\texttt{test\_concurrency.py}}} \\ \midrule
+\texttt{test\_a\_confirm\_racing\_the\_deadline\_never\_confirms\_a\_closed\_swap} & 0.774 & Pass \\
+\texttt{test\_a\_database\_still\_busy\_after\_waiting\_gets\_a\_plain\_try\_again} & 0.016 & Pass \\
+\texttt{test\_a\_slow\_mail\_server\_does\_not\_hold\_up\_other\_requests} & 4.782 & Pass \\
+\texttt{test\_two\_rounds\_at\_once\_never\_put\_a\_request\_in\_two\_swaps} & 0.770 & Pass \\
+\midrule
+\multicolumn{3}{@{}l}{\textbf{\texttt{test\_cycles\_service.py}}} \\ \midrule
+\texttt{test\_answering\_after\_deadline\_is\_refused} & 0.156 & Pass \\
+\texttt{test\_answering\_twice\_is\_refused} & 0.315 & Pass \\
+\texttt{test\_approve\_moves\_students\_into\_their\_new\_seats} & 0.163 & Pass \\
+\texttt{test\_approve\_needs\_everyone\_confirmed} & 0.179 & Pass \\
+\texttt{test\_deadline\_dissolves\_unanswered\_cycles} & 0.166 & Pass \\
+\texttt{test\_everyone\_accepting\_confirms\_the\_cycle} & 0.150 & Pass \\
+\texttt{test\_one\_decline\_dissolves\_and\_returns\_others\_to\_pool} & 0.292 & Pass \\
+\texttt{test\_outsider\_cannot\_answer} & 0.154 & Pass \\
+\midrule
+\multicolumn{3}{@{}l}{\textbf{\texttt{test\_demo\_mode.py}}} \\ \midrule
+\texttt{test\_demo\_automatic\_rounds\_count\_in\_minutes} & 0.171 & Pass \\
+\texttt{test\_demo\_mode\_gives\_3\_minutes\_to\_confirm} & 0.170 & Pass \\
+\texttt{test\_demo\_reminder\_comes\_1\_minute\_after\_the\_round} & 0.188 & Pass \\
+\texttt{test\_demo\_sign\_in\_lock\_lasts\_one\_minute} & 0.012 & Pass \\
+\texttt{test\_normal\_mode\_gives\_48\_hours\_to\_confirm} & 0.185 & Pass \\
+\texttt{test\_pages\_are\_told\_the\_times\_in\_use} & 0.044 & Pass \\
+\midrule
+\multicolumn{3}{@{}l}{\textbf{\texttt{test\_matching\_service.py}}} \\ \midrule
+\texttt{test\_dry\_run\_saves\_the\_run\_but\_changes\_nothing} & 0.164 & Pass \\
+\texttt{test\_each\_member\_receives\_the\_next\_members\_seat} & 0.176 & Pass \\
+\texttt{test\_empty\_pool\_gives\_zero\_yield} & 0.161 & Pass \\
+\texttt{test\_pairwise\_cannot\_save\_real\_swaps} & 0.166 & Pass \\
+\texttt{test\_pairwise\_comparison\_matches\_fewer\_than\_ttc} & 0.164 & Pass \\
+\texttt{test\_second\_run\_only\_sees\_students\_still\_open} & 0.166 & Pass \\
+\texttt{test\_seeded\_pool\_gives\_one\_2\_3\_and\_4\_way\_chain} & 0.299 & Pass \\
+\texttt{test\_trace\_explains\_every\_chain\_in\_plain\_words} & 0.320 & Pass \\
+\texttt{test\_unknown\_algorithm\_rejected} & 0.154 & Pass \\
+\midrule
+\multicolumn{3}{@{}l}{\textbf{\texttt{test\_metrics.py}}} \\ \midrule
+\texttt{test\_cycle\_length\_counts} & 0.001 & Pass \\
+\texttt{test\_match\_yield\_is\_percent\_of\_pool\_matched} & 0.001 & Pass \\
+\texttt{test\_match\_yield\_of\_empty\_pool\_is\_zero} & 0.001 & Pass \\
+\midrule
+\multicolumn{3}{@{}l}{\textbf{\texttt{test\_operations.py}}} \\ \midrule
+\texttt{test\_a\_failing\_send\_is\_recorded\_and\_retried\_later} & 0.170 & Pass \\
+\texttt{test\_approval\_form\_lists\_every\_member\_and\_the\_approver} & 0.194 & Pass \\
+\texttt{test\_approval\_form\_only\_for\_approved\_swaps} & 0.168 & Pass \\
+\texttt{test\_approval\_pdf\_route} & 0.328 & Pass \\
+\texttt{test\_approver\_is\_recorded} & 0.178 & Pass \\
+\texttt{test\_bad\_interval\_is\_rejected} & 0.146 & Pass \\
+\texttt{test\_delivery\_with\_a\_sender\_marks\_mail\_sent} & 0.177 & Pass \\
+\texttt{test\_delivery\_without\_a\_mail\_server\_keeps\_mail\_queued} & 0.322 & Pass \\
+\texttt{test\_dry\_run\_sends\_no\_email} & 0.162 & Pass \\
+\texttt{test\_due\_round\_runs\_and\_moves\_the\_next\_time\_forward} & 0.176 & Pass \\
+\texttt{test\_event\_log\_downloads\_as\_csv} & 0.452 & Pass \\
+\texttt{test\_outbox\_route\_says\_mail\_is\_not\_being\_sent} & 0.299 & Pass \\
+\texttt{test\_reminder\_goes\_once\_to\_members\_who\_have\_not\_answered} & 0.175 & Pass \\
+\texttt{test\_saved\_round\_queues\_one\_match\_email\_per\_member} & 0.174 & Pass \\
+\texttt{test\_schedule\_routes} & 0.287 & Pass \\
+\texttt{test\_schedule\_starts\_switched\_off} & 0.164 & Pass \\
+\texttt{test\_smtp\_sender\_is\_off\_unless\_configured} & 0.001 & Pass \\
+\texttt{test\_students\_cannot\_use\_staff\_tools} & 0.269 & Pass \\
+\texttt{test\_switched\_off\_schedule\_never\_runs} & 0.294 & Pass \\
+\texttt{test\_tick\_expires\_reminds\_runs\_and\_delivers} & 0.167 & Pass \\
+\texttt{test\_turning\_schedule\_on\_sets\_the\_next\_run} & 0.155 & Pass \\
+\midrule
+\multicolumn{3}{@{}l}{\textbf{\texttt{test\_pairwise.py}}} \\ \midrule
+\texttt{test\_best\_combined\_rank\_pair\_is\_chosen\_first} & 0.001 & Pass \\
+\texttt{test\_direct\_swap\_found} & 0.001 & Pass \\
+\texttt{test\_nobody\_is\_in\_two\_pairs} & 0.001 & Pass \\
+\texttt{test\_seat\_after\_own\_seat\_is\_not\_acceptable} & 0.000 & Pass \\
+\texttt{test\_three\_way\_chain\_is\_invisible\_to\_pairwise\_but\_not\_to\_ttc} & 0.001 & Pass \\
+\midrule
+\multicolumn{3}{@{}l}{\textbf{\texttt{test\_requests\_service.py}}} \\ \midrule
+\texttt{test\_duplicate\_room\_rejected} & 0.150 & Pass \\
+\texttt{test\_empty\_list\_rejected} & 0.173 & Pass \\
+\texttt{test\_more\_than\_five\_rejected} & 0.168 & Pass \\
+\texttt{test\_own\_room\_rejected} & 0.146 & Pass \\
+\texttt{test\_room\_in\_other\_gender\_hostel\_rejected} & 0.157 & Pass \\
+\texttt{test\_second\_active\_request\_rejected} & 0.335 & Pass \\
+\texttt{test\_student\_without\_seat\_rejected} & 0.175 & Pass \\
+\texttt{test\_submit\_saves\_ranked\_open\_request\_with\_tracking\_id} & 0.328 & Pass \\
+\texttt{test\_unknown\_room\_rejected} & 0.151 & Pass \\
+\texttt{test\_withdraw\_open\_request} & 0.165 & Pass \\
+\texttt{test\_withdraw\_while\_matched\_is\_refused} & 0.144 & Pass \\
+\texttt{test\_withdraw\_without\_request} & 0.146 & Pass \\
+\midrule
+\multicolumn{3}{@{}l}{\textbf{\texttt{test\_room\_types.py}}} \\ \midrule
+\texttt{test\_api\_accepts\_choices\_body} & 0.284 & Pass \\
+\texttt{test\_api\_rejects\_choice\_with\_both\_room\_and\_type} & 0.287 & Pass \\
+\texttt{test\_dashboard\_and\_staff\_list\_show\_type\_labels} & 0.403 & Pass \\
+\texttt{test\_received\_rank\_is\_the\_first\_choice\_that\_matches} & 0.185 & Pass \\
+\texttt{test\_same\_type\_twice\_is\_rejected} & 0.162 & Pass \\
+\texttt{test\_type\_and\_room\_choices\_can\_be\_mixed} & 0.153 & Pass \\
+\texttt{test\_type\_choice\_finds\_a\_swap\_chain} & 0.186 & Pass \\
+\texttt{test\_type\_choice\_is\_saved\_with\_a\_readable\_label} & 0.150 & Pass \\
+\texttt{test\_type\_in\_hostel\_of\_other\_gender\_is\_rejected} & 0.166 & Pass \\
+\texttt{test\_type\_matching\_no\_room\_is\_rejected} & 0.371 & Pass \\
+\texttt{test\_type\_with\_no\_filters\_means\_any\_room\_in\_that\_hostel} & 0.164 & Pass \\
+\texttt{test\_unknown\_hostel\_is\_rejected} & 0.158 & Pass \\
+\midrule
+\multicolumn{3}{@{}l}{\textbf{\texttt{test\_run.py}}} \\ \midrule
+\texttt{test\_database\_missing\_a\_column\_is\_not\_current} & 0.123 & Pass \\
+\texttt{test\_database\_missing\_a\_table\_is\_not\_current} & 0.119 & Pass \\
+\texttt{test\_fresh\_schema\_is\_current} & 0.115 & Pass \\
+\midrule
+\multicolumn{3}{@{}l}{\textbf{\texttt{test\_security.py}}} \\ \midrule
+\texttt{test\_malformed\_stored\_hash\_fails\_safely} & 0.001 & Pass \\
+\texttt{test\_right\_password\_verifies} & 0.130 & Pass \\
+\texttt{test\_same\_password\_hashes\_differently\_each\_time} & 0.124 & Pass \\
+\texttt{test\_tokens\_are\_random\_and\_stored\_only\_as\_digest} & 0.001 & Pass \\
+\texttt{test\_wrong\_password\_fails} & 0.134 & Pass \\
+\midrule
+\multicolumn{3}{@{}l}{\textbf{\texttt{test\_seed.py}}} \\ \midrule
+\texttt{test\_demo\_accounts\_exist\_and\_log\_in} & 0.219 & Pass \\
+\texttt{test\_occupants\_match\_hostel\_gender} & 0.162 & Pass \\
+\texttt{test\_prebuilt\_pool\_is\_open} & 0.155 & Pass \\
+\texttt{test\_seed\_creates\_hostels\_and\_fills\_every\_seat} & 0.152 & Pass \\
+\midrule
+\multicolumn{3}{@{}l}{\textbf{\texttt{test\_slots.py}}} \\ \midrule
+\texttt{test\_approval\_rechecks\_that\_each\_teacher\_still\_owns\_the\_slot\_they\_give} & 0.163 & Pass \\
+\texttt{test\_cannot\_offer\_someone\_elses\_slot} & 0.155 & Pass \\
+\texttt{test\_cannot\_rank\_a\_slot\_that\_clashes\_with\_your\_other\_lecture} & 0.149 & Pass \\
+\texttt{test\_cannot\_rank\_your\_own\_slot} & 0.160 & Pass \\
+\texttt{test\_database\_refuses\_a\_second\_active\_request\_from\_one\_person} & 0.152 & Pass \\
+\texttt{test\_decline\_dissolves\_and\_others\_go\_back\_to\_the\_pool} & 0.159 & Pass \\
+\texttt{test\_dry\_run\_changes\_nothing} & 0.158 & Pass \\
+\texttt{test\_empty\_duplicate\_unknown\_and\_too\_many\_are\_rejected} & 0.160 & Pass \\
+\texttt{test\_faculty\_api\_round\_trip} & 0.714 & Pass \\
+\texttt{test\_faculty\_offers\_a\_slot\_and\_ranks\_others} & 0.152 & Pass \\
+\texttt{test\_faculty\_on\_the\_student\_tab\_is\_told\_to\_switch} & 0.229 & Pass \\
+\texttt{test\_faculty\_sign\_in\_and\_home} & 0.264 & Pass \\
+\texttt{test\_live\_two\_way\_swap\_between\_demo\_faculty\_end\_to\_end} & 0.185 & Pass \\
+\texttt{test\_non\_member\_cannot\_answer} & 0.158 & Pass \\
+\texttt{test\_one\_active\_request\_at\_a\_time\_and\_withdraw} & 0.155 & Pass \\
+\texttt{test\_overdue\_slot\_chain\_expires\_in\_the\_tick} & 0.163 & Pass \\
+\texttt{test\_seed\_has\_faculty\_with\_slots\_and\_an\_open\_pool} & 0.352 & Pass \\
+\texttt{test\_seeded\_slot\_pool\_gives\_a\_three\_way\_chain} & 0.340 & Pass \\
+\texttt{test\_slot\_label\_reads\_like\_a\_timetable} & 0.157 & Pass \\
+\texttt{test\_students\_cannot\_reach\_faculty\_pages} & 0.290 & Pass \\
+\midrule
+\multicolumn{3}{@{}l}{\textbf{\texttt{test\_structures.py}}} \\ \midrule
+\texttt{test\_acceptable\_is\_whole\_list\_when\_own\_seat\_not\_listed} & 0.000 & Pass \\
+\texttt{test\_acceptable\_stops\_before\_own\_seat} & 0.000 & Pass \\
+\texttt{test\_cycle\_length} & 0.000 & Pass \\
+\texttt{test\_validate\_rejects\_duplicate\_ids} & 0.001 & Pass \\
+\texttt{test\_validate\_rejects\_shared\_seat} & 0.000 & Pass \\
+\texttt{test\_validate\_returns\_participants\_by\_id} & 0.000 & Pass \\
+\midrule
+\multicolumn{3}{@{}l}{\textbf{\texttt{test\_ttc.py}}} \\ \midrule
+\texttt{test\_cycle\_is\_rotated\_to\_start\_at\_smallest\_id} & 0.000 & Pass \\
+\texttt{test\_double\_room\_seats\_are\_tried\_in\_listed\_order} & 0.000 & Pass \\
+\texttt{test\_empty\_pool} & 0.001 & Pass \\
+\texttt{test\_listing\_own\_seat\_means\_rest\_is\_worse\_than\_staying} & 0.000 & Pass \\
+\texttt{test\_nobody\_wants\_you\_back\_means\_unmatched} & 0.000 & Pass \\
+\texttt{test\_random\_pools\_obey\_the\_basic\_guarantees} & 0.020 & Pass \\
+\texttt{test\_round\_trace\_records\_cycles\_and\_kept} & 0.001 & Pass \\
+\texttt{test\_same\_result\_whatever\_the\_input\_order} & 0.001 & Pass \\
+\texttt{test\_second\_choice\_used\_when\_first\_is\_gone} & 0.000 & Pass \\
+\texttt{test\_three\_way\_cycle\_that\_no\_pair\_could\_do} & 0.001 & Pass \\
+\texttt{test\_top\_choice\_wins\_and\_loser\_falls\_through} & 0.000 & Pass \\
+\texttt{test\_two\_thousand\_students\_run\_quickly} & 0.142 & Pass \\
+\texttt{test\_two\_way\_swap} & 0.000 & Pass \\
+\texttt{test\_unknown\_seats\_are\_ignored} & 0.000 & Pass \\
+\midrule
+\multicolumn{3}{@{}l}{\textbf{\texttt{test\_views\_service.py}}} \\ \midrule
+\texttt{test\_admin\_overview\_reflects\_latest\_run} & 0.160 & Pass \\
+\texttt{test\_admin\_requests\_rows} & 0.368 & Pass \\
+\texttt{test\_dashboard\_after\_approval\_shows\_new\_room} & 0.161 & Pass \\
+\texttt{test\_dashboard\_shows\_the\_swap\_chain\_after\_matching} & 0.156 & Pass \\
+\texttt{test\_dashboard\_with\_open\_request} & 0.156 & Pass \\
+\texttt{test\_dashboard\_without\_request} & 0.167 & Pass \\
+\texttt{test\_export\_csv\_has\_header\_and\_one\_row\_per\_request} & 0.191 & Pass \\
+\texttt{test\_public\_stats\_show\_real\_counts} & 0.141 & Pass \\
+\texttt{test\_room\_trace\_ignores\_a\_later\_lecture\_slot\_round} & 0.174 & Pass \\
+\texttt{test\_rooms\_listing\_only\_shows\_own\_gender\_hostels} & 0.345 & Pass \\
+\midrule

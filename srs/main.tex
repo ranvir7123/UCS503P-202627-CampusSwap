@@ -163,6 +163,9 @@
   \midrule
   CampusSwap team & \DocDate & First complete version. Covers the working
   prototype (marked \Built) and Phase~2 (marked \Planned). & 1.0\\
+  CampusSwap team & 3 November 2026 & Final stage: every Phase~2 requirement
+  is now built except Microsoft single sign-on (\Req{FR-AUTH-11}); faculty
+  can sign in. & 1.1\\
   \bottomrule
 \end{xltabular}
 
@@ -827,8 +830,9 @@ message:
     form posts), and expires after 12 hours.
   \item For a real deployment the server shall be reached only over HTTPS,
     with the cookie also marked \emph{Secure} (\Req{NFR-SEC-07},
-    \Planned).
-  \item Phase~2 adds email notifications (\Req{FR-CONF-06}, \Planned).
+    \Built: \texttt{run.py --cert --key}).
+  \item Members of a chain are emailed when it is found and before the
+    deadline (\Req{FR-CONF-06}, \Built; sent only when a mail server is set up).
 \end{itemize}
 
 % ======================================================================
@@ -857,7 +861,7 @@ The features, from most to least important:
     could rank rooms without it.
   \item \textbf{Status tracking and reports} (Medium). Builds trust and
     gives the hostel office its records.
-  \item \textbf{Faculty slot exchange} (Low, Phase~2). Reuses the same
+  \item \textbf{Faculty slot exchange} (Low). Reuses the same
     engine for lecture slots.
 \end{enumerate}
 
@@ -891,7 +895,7 @@ a password and a role (Student or Hostel Staff). Priority: High.
   \bottomrule
   \endlastfoot
   \Req{FR-AUTH-01} & The system shall let a user sign in with an email
-    address, a password and a role (Student or Hostel Staff). & High &
+    address, a password and a role (Student, Hostel Staff or Faculty). & High &
     \Built\\
   \Req{FR-AUTH-02} & The system shall ignore letter case and surrounding
     spaces in the email address. & Medium & \Built\\
@@ -914,10 +918,10 @@ a password and a role (Student or Hostel Staff). Priority: High.
   \Req{FR-AUTH-08} & The sign-in page shall accept only addresses ending in
     \texttt{@thapar.edu}. & Medium & \Built\\
   \Req{FR-AUTH-09} & The server shall also refuse sign-in for addresses
-    outside \texttt{@thapar.edu} (today only the page checks this). &
-    Medium & \Planned\\
+    outside \texttt{@thapar.edu} (not only the page). &
+    Medium & \Built\\
   \Req{FR-AUTH-10} & The system shall slow down or block repeated failed
-    sign-in attempts. & Medium & \Planned\\
+    sign-in attempts. & Medium & \Built\\
   \Req{FR-AUTH-11} & Students shall be able to sign in with the
     institute's Microsoft account (single sign-on). & Low & \Planned\\
 \end{xltabular}
@@ -964,7 +968,7 @@ move to and picks the ones to rank. Priority: Medium.
     view, split into pages. & Low & \Built\\
   \Req{FR-ROOM-07} & A student shall be able to rank a room type (for
     example ``any single AC room on floor 1'') instead of one specific
-    room. & Low & \Planned\\
+    room. & Low & \Built\\
 \end{xltabular}
 
 % ---------------------------------------------------------------- REQ
@@ -1087,7 +1091,7 @@ no group can break away and do better among themselves
     ever run as a dry run (\texttt{pairwise\_must\_be\_dry\_run}). & Medium
     & \Built\\
   \Req{FR-MATCH-10} & Rounds shall run automatically on a schedule set by
-    the hostel office. & Low & \Planned\\
+    the hostel office. & Low & \Built\\
 \end{xltabular}
 
 % ---------------------------------------------------------------- CONF
@@ -1136,7 +1140,7 @@ Priority: High.
     (\texttt{cycle\_closed}), or from a member who already answered
     (\texttt{already\_answered}). & High & \Built\\
   \Req{FR-CONF-06} & The system shall email each member when a chain is
-    found and again before the deadline. & Medium & \Planned\\
+    found and again before the deadline. & Medium & \Built\\
 \end{xltabular}
 
 % ---------------------------------------------------------------- APPR
@@ -1166,7 +1170,7 @@ marks their requests \emph{completed}.
     \Built\\
   \Req{FR-APPR-03} & The system shall produce a signed-off approval form
     (PDF) listing every member, for the hostel office. & Medium &
-    \Planned\\
+    \Built\\
 \end{xltabular}
 
 % ---------------------------------------------------------------- TRACK
@@ -1215,11 +1219,11 @@ request; pressing \emph{Export CSV} downloads them as a spreadsheet.
     requests, rooms, hostels, requests per day for the last seven days,
     last round) without any personal data. & Low & \Built\\
   \Req{FR-TRACK-08} & Staff shall be able to download the full event log
-    as an audit trail. & Medium & \Planned\\
+    as an audit trail. & Medium & \Built\\
 \end{xltabular}
 
 % ---------------------------------------------------------------- SLOT
-\subsection{Faculty slot exchange (Phase~2)}
+\subsection{Faculty slot exchange}
 
 \paragraph{Description and priority.} Faculty members swap lecture slots
 using the same engine: each owns a slot and ranks slots they prefer.
@@ -1235,7 +1239,7 @@ Priority: Low.
   \endlastfoot
   \Req{FR-SLOT-01} & Faculty shall be able to rank lecture slots they would
     prefer to their own, and the matching engine shall find slot-swap
-    chains in the same way as for rooms. & Low & \Planned\\
+    chains in the same way as for rooms. & Low & \Built\\
 \end{xltabular}
 
 % ======================================================================
@@ -1323,9 +1327,9 @@ Here, safety means protecting data from being lost, mixed up or exposed.
   \Req{NFR-SEC-06} & Error messages shall not reveal whether an email
     address has an account. & Medium & \Built\\
   \Req{NFR-SEC-07} & A deployed system shall be reached only over HTTPS,
-    with the cookie marked Secure. & High & \Planned\\
+    with the cookie marked Secure. & High & \Built\\
   \Req{NFR-SEC-08} & Repeated failed sign-ins shall be limited (see
-    \Req{FR-AUTH-10}). & Medium & \Planned\\
+    \Req{FR-AUTH-10}). & Medium & \Built\\
 \end{xltabular}
 
 \section{Software Quality Attributes}
