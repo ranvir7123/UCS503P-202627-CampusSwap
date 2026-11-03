@@ -39,7 +39,7 @@ def main() -> None:
         sys.exit(f"{DEFAULT_DB_PATH.name} was made by an older version of CampusSwap. "
                  "Run again with --reset to rebuild it with fresh demo data.")
     https = bool(args.cert)
-    app = create_app(secure=True if https else None)
+    app = create_app(secure=True if https else None, background=True)
     if fresh:
         with app.state.session_factory() as db:
             seed(db)

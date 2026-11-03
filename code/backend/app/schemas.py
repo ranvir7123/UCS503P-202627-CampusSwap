@@ -48,6 +48,11 @@ class RequestIn(BaseModel):
         return [c.room_id if c.room_id is not None else c.type.model_dump() for c in self.choices]
 
 
+class ScheduleIn(BaseModel):
+    enabled: bool
+    every_hours: int = Field(ge=1, le=24 * 14)
+
+
 class MatchRunIn(BaseModel):
     algorithm: Literal["ttc", "pairwise"] = "ttc"
     dry_run: bool = False

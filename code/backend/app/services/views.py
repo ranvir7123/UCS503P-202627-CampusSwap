@@ -216,6 +216,19 @@ def admin_requests(db: Session) -> list[dict]:
     return rows
 
 
+def events_csv(db: Session) -> str:
+    """The whole audit log, oldest first (FR-TRACK-08)."""
+    out = io.StringIO()
+    writer = csv.writer(out)
+    writer.writerow(["id", "time_utc", "kind", "message", "student", "roll_no", "cycle_id"])
+    people = {s.id: s for s in db.scalars(select(Student))}
+    for e in db.scalars(select(Event).order_by(Event.id)):
+        who = people.get(e.student_id)
+        writer.writerow([e.id, iso(e.created_at), e.kind, e.message, who.name if who else "",
+                         who.roll_no if who else "", e.cycle_id or ""])
+    return out.getvalue()
+
+
 def export_csv(db: Session) -> str:
     out = io.StringIO()
     writer = csv.writer(out)

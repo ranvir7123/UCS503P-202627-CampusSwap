@@ -10,6 +10,7 @@ from sqlalchemy.orm import Session
 from app.errors import DomainError
 from app.models import Admin, CycleMember, MatchRun, Seat, SwapCycle, SwapRequest
 from app.services.cycles import expire_overdue
+from app.services import mail
 from app.services.events import log
 from engine import MatchResult, Participant, cycle_length_counts, match_yield, pairwise_swaps, top_trading_cycles
 
@@ -97,6 +98,7 @@ def _save_cycle(db, run, members, by_id, result: MatchResult, ranks, now) -> Non
         log(db, now, "match_found",
             f"Match found: a {len(members)}-way swap. You get your choice #{member.received_rank}. "
             f"Please confirm before the deadline.", student_id=member.request.student_id, cycle_id=cycle.id)
+        mail.match_found(db, now, member)
 
 
 def _trace_lines(result: MatchResult, by_id: dict[int, SwapRequest], run: MatchRun) -> list[str]:

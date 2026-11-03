@@ -196,7 +196,9 @@ class SwapCycle(Base):
     deadline: Mapped[datetime] = mapped_column(DateTime)
     created_at: Mapped[datetime] = mapped_column(DateTime)
     closed_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+    approved_by_id: Mapped[Optional[int]] = mapped_column(ForeignKey("users.id"), nullable=True)
     match_run: Mapped[MatchRun] = relationship(back_populates="cycles")
+    approved_by: Mapped[Optional[User]] = relationship()
     members: Mapped[list["CycleMember"]] = relationship(back_populates="cycle", order_by="CycleMember.position")
 
 
@@ -213,6 +215,7 @@ class CycleMember(Base):
     received_rank: Mapped[int] = mapped_column(Integer)  # which choice they got (1 = first)
     response: Mapped[str] = mapped_column(String(10), default="pending")
     responded_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+    reminded_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
     cycle: Mapped[SwapCycle] = relationship(back_populates="members")
     request: Mapped[SwapRequest] = relationship()
     gives_seat: Mapped[Seat] = relationship(foreign_keys=[gives_seat_id])
@@ -229,3 +232,34 @@ class Event(Base):
     message: Mapped[str] = mapped_column(String(300))
     student_id: Mapped[Optional[int]] = mapped_column(ForeignKey("users.id"), nullable=True)
     cycle_id: Mapped[Optional[int]] = mapped_column(ForeignKey("swap_cycles.id"), nullable=True)
+
+
+# ---------------------------------------------------------------- staff tools
+class Email(Base):
+    """Outbox. Mail is queued here first; it is "sent" only once a mail server took it."""
+
+    __tablename__ = "emails"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime)
+    kind: Mapped[str] = mapped_column(String(30))  # match_found / deadline_reminder / slot_match_found ...
+    to_user_id: Mapped[int] = mapped_column(ForeignKey("users.id"))
+    to_address: Mapped[str] = mapped_column(String(120))
+    subject: Mapped[str] = mapped_column(String(200))
+    body: Mapped[str] = mapped_column(Text)
+    status: Mapped[str] = mapped_column(String(10), default="queued")  # queued / sent
+    attempts: Mapped[int] = mapped_column(Integer, default=0)
+    error: Mapped[Optional[str]] = mapped_column(String(300), nullable=True)
+    sent_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+
+
+class Schedule(Base):
+    """One row: when the next automatic matching round runs."""
+
+    __tablename__ = "schedule"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    enabled: Mapped[bool] = mapped_column(Boolean, default=False)
+    every_hours: Mapped[int] = mapped_column(Integer, default=24)
+    next_run_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+    set_by_id: Mapped[Optional[int]] = mapped_column(ForeignKey("users.id"), nullable=True)
+    last_run_id: Mapped[Optional[int]] = mapped_column(ForeignKey("match_runs.id"), nullable=True)
+    set_by: Mapped[Optional[User]] = relationship()
