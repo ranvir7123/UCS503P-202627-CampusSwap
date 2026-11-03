@@ -1,4 +1,9 @@
 // Theme copied from reference 2 (student dashboard).
+// One change: the reference set `violet` to a single colour, which silently
+// removes Tailwind's violet-50..900 shades (violet-600 avatars rendered white).
+// We keep the reference violet as the DEFAULT and restore the shades.
+const colors = require("tailwindcss/colors");
+
 module.exports = {
   content: ["./public/dashboard.html", "./public/js/dashboard.js", "./public/js/ring.js", "./public/js/ui.js", "./public/js/nav.js"],
   darkMode: "class",
@@ -12,7 +17,7 @@ module.exports = {
         "marigold": "#FFB300",
         "marigold-light": "#FFF8E1",
         "marigold-subtle": "#FFF4CE",
-        "violet": "#7C3AED",
+        "violet": { ...colors.violet, DEFAULT: "#7C3AED" },
         "violet-light": "#F5F3FF",
         "violet-subtle": "#EDE9FE",
         "emerald-custom": "#10B981",

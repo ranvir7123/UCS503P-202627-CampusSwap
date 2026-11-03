@@ -59,7 +59,7 @@ only the diagram text to the public PlantUML server and saves PNG and SVG files 
 
 ## Delivery
 
-- **CI:** every push runs 89 tests on GitHub (`tests.yml`). Green tick = all pass.
+- **CI:** every push runs 90 tests on GitHub (`tests.yml`). Green tick = all pass.
 - **Docs site:** pushing to `master` rebuilds and publishes it through the template's
   `mkdocs.yml` workflow (GitHub Pages must be switched on in the repository settings,
   using the `gh-pages` branch).

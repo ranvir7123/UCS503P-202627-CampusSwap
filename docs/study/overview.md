@@ -51,7 +51,7 @@ Browser pages ──HTTP/JSON──▶ FastAPI routes ──▶ Services (rules)
 | 75% vs 16.7% | Match Yield on the demo pool: TTC vs 1:1 swaps only |
 | 80% | Match Yield after the 3 demo students add their 3-way chain (12 of 15) |
 | ≥ 60% | The proposal's Match Yield target |
-| 89 | Automated tests; they run on GitHub for every push |
+| 90 | Automated tests; they run on GitHub for every push |
 | ~0.1 s | Time for TTC on 2,000 students in our tests |
 | O(n²) | Worst-case running time of TTC for *n* students |
 

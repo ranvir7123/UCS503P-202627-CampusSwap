@@ -129,3 +129,7 @@ def test_public_stats_need_no_login(client):
 def test_home_page_is_served(client):
     r = client.get("/")
     assert r.status_code == 200 and "CampusSwap" in r.text
+
+
+def test_pages_tell_browsers_to_check_for_updates(client):
+    assert client.get("/").headers["cache-control"] == "no-cache"

@@ -16,7 +16,7 @@ What the prototype deliberately does **not** do yet, so nobody claims more than 
 | Approval updates CampusSwap's own records only | The proposal keeps the hostel office's master records separate | Export for the office's system |
 | Students must rank specific rooms | Keeps the prototype simple | Allow "any room of this type/floor" (proposal §10 risk plan) |
 | The 1:1 comparison uses a simple greedy pairing | It is only a baseline for comparison | Could use a maximum matching for a stricter baseline |
-| No automated browser tests | Pages are checked by hand; server and engine have 89 tests | Add browser tests (e.g. Playwright) |
+| No automated browser tests | Pages are checked by hand; server and engine have 90 tests | Add browser tests (e.g. Playwright) |
 | Light theme only | The reference designs are light | Add a dark theme |
 
 ## Phase 2 (from the proposal)

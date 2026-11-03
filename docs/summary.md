@@ -1,4 +1,6 @@
 - [Home](index.md)
+- [Showcase guide (A to Z)](showcase.md)
+- [Demo accounts](demo-accounts.md)
 - [Getting started](getting-started.md)
 - [Architecture](architecture.md)
 - [Matching engine (TTC)](matching-engine.md)
