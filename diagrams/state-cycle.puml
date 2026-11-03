@@ -1,0 +1,37 @@
+@startuml state-cycle
+' CampusSwap - State diagram: the status of one swap chain (cycle)
+skinparam dpi 170
+skinparam defaultFontName "Arial"
+skinparam shadowing false
+skinparam state {
+  BackgroundColor #FFF0F2
+  BorderColor #FF385C
+  ArrowColor #475569
+  FontStyle bold
+  AttributeFontStyle plain
+}
+skinparam note {
+  BackgroundColor #FFF7EB
+  BorderColor #FFA114
+}
+
+state "proposed" as Proposed : deadline = time of the round + 48 hours\nentry / every member's answer = pending
+state "confirmed" as Confirmed : every member accepted;\nwaiting for the warden
+state "approved" as Approved : seats have changed hands;\nrequests are completed
+state "dissolved" as Dissolved : chain cancelled; members go back\nto the pool or are withdrawn
+
+[*] --> Proposed : a saved TTC round\nfinds the chain
+Proposed --> Proposed : a member accepts\n[others still pending]
+Proposed --> Confirmed : the last pending\nmember accepts
+Proposed --> Dissolved : any member declines
+Proposed --> Dissolved : deadline passes\n[checked when a round runs\nor any member answers]
+Confirmed --> Approved : warden approves
+Approved --> [*]
+Dissolved --> [*]
+
+note right of Confirmed
+  A confirmed chain no longer
+  expires. It waits for the
+  warden's approval.
+end note
+@enduml

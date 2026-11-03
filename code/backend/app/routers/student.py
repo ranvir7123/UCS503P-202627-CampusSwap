@@ -21,7 +21,7 @@ def dashboard(db: DB, student: CurrentStudent, now: Now) -> dict:
 
 @router.post("/requests", status_code=201)
 def create_request(body: RequestIn, db: DB, student: CurrentStudent, now: Now) -> dict:
-    request = submit_request(db, student, body.room_ids, now)
+    request = submit_request(db, student, body.as_choices(), now)
     db.commit()
     return {"tracking_id": request.tracking_id, "status": request.status}
 

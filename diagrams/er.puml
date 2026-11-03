@@ -1,0 +1,165 @@
+@startuml er
+' CampusSwap - Entity-relationship diagram (crow's foot notation)
+' Mirrors code/backend/app/models.py. PK = primary key, FK = foreign key,
+' UQ = unique. Student and Admin rows share the users table (role column).
+skinparam dpi 170
+skinparam defaultFontName "Arial"
+skinparam shadowing false
+skinparam linetype ortho
+skinparam nodesep 60
+skinparam ranksep 70
+skinparam ArrowColor #475569
+skinparam class {
+  BackgroundColor #FFFFFF
+  BorderColor #475569
+  HeaderBackgroundColor #FFF0F2
+}
+hide circle
+skinparam legend {
+  BackgroundColor #FFFFFF
+  BorderColor #94A3B8
+}
+hide empty members
+
+entity "users" as users {
+  * id : int <<PK>>
+  --
+  * role : 'student' | 'admin'
+  * email : str <<UQ>>
+  * name : str
+  * password_hash : str
+  roll_no : str <<UQ>>
+  gender : 'M' | 'F'
+  year : int
+  branch : str
+}
+
+entity "login_sessions" as sessions {
+  * id : int <<PK>>
+  --
+  * token_hash : str <<UQ>>
+  * user_id : int <<FK>>
+  * expires_at : datetime
+}
+
+entity "hostels" as hostels {
+  * id : int <<PK>>
+  --
+  * code : str <<UQ>>
+  * name : str
+  * gender : 'M' | 'F'
+  * warden_name : str
+}
+
+entity "rooms" as rooms {
+  * id : int <<PK>>
+  --
+  * hostel_id : int <<FK>>
+  * block : str
+  * floor : int
+  * number : str
+  * seater : 1..3
+  * ac : bool
+  * washroom : str
+  tags : str
+  UQ (hostel_id, number)
+}
+
+entity "seats" as seats {
+  * id : int <<PK>>
+  --
+  * room_id : int <<FK>>
+  * label : 'A' | 'B' | 'C'
+  occupant_id : int <<FK, UQ>>
+}
+
+entity "swap_requests" as requests {
+  * id : int <<PK>>
+  --
+  tracking_id : str <<UQ>>
+  * student_id : int <<FK>>
+  * seat_id : int <<FK>>
+  * status : open | matched |\n  completed | withdrawn
+  * created_at : datetime
+  * updated_at : datetime
+}
+
+entity "preferences" as prefs {
+  * id : int <<PK>>
+  --
+  * request_id : int <<FK>>
+  * rank : 1..5
+  * room_id : int <<FK>>
+  UQ (request_id, rank)
+  UQ (request_id, room_id)
+}
+
+entity "match_runs" as runs {
+  * id : int <<PK>>
+  --
+  * created_at : datetime
+  * run_by_id : int <<FK>>
+  * algorithm : 'ttc' | 'pairwise'
+  * dry_run : bool
+  * pool_size : int
+  * matched : int
+  * yield_pct : float
+  * first_choice_pct : float
+  * cycles_by_length : json
+  * trace : text
+}
+
+entity "swap_cycles" as cycles {
+  * id : int <<PK>>
+  --
+  * match_run_id : int <<FK>>
+  * status : proposed | confirmed |\n  approved | dissolved
+  * deadline : datetime
+  * created_at : datetime
+  closed_at : datetime
+}
+
+entity "cycle_members" as members {
+  * id : int <<PK>>
+  --
+  * cycle_id : int <<FK>>
+  * request_id : int <<FK>>
+  * position : int
+  * gives_seat_id : int <<FK>>
+  * receives_seat_id : int <<FK>>
+  * received_rank : int
+  * response : pending | accepted | declined
+  responded_at : datetime
+}
+
+entity "events" as events {
+  * id : int <<PK>>
+  --
+  * created_at : datetime
+  * kind : str
+  * message : str
+  student_id : int <<FK>>
+  cycle_id : int <<FK>>
+}
+
+legend bottom right
+  <b>dot before a field</b> = value required    <b>PK</b> primary key    <b>FK</b> foreign key    <b>UQ</b> unique
+  Crow's foot: <b>||</b> exactly one   <b>|o</b> zero or one   <b>|{</b> one or more   <b>o{</b> zero or more
+endlegend
+
+users ||--o{ sessions : signs in with
+hostels ||--|{ rooms : contains
+rooms ||--|{ seats : has
+seats |o--o| users : occupied by
+users ||--o{ requests : makes
+seats ||--o{ requests : offered in
+requests ||--|{ prefs : ranks
+rooms ||--o{ prefs : chosen in
+users ||--o{ runs : runs
+runs ||--o{ cycles : proposes
+cycles ||--|{ members : "has (2 or more)"
+requests ||--o{ members : appears as
+seats ||--o{ members : gives / receives
+users |o--o{ events : about
+cycles |o--o{ events : about
+@enduml

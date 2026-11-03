@@ -3,311 +3,118 @@
 <meta charset="utf-8"/>
 <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
 <title>CampusSwap · Sign in</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 32 32%27%3E%3Crect width=%2732%27 height=%2732%27 rx=%277%27 fill=%27%23D4B06A%27/%3E%3Cpath d=%27M9 12h13l-3-3M23 20H10l3 3%27 stroke=%27%231A1408%27 stroke-width=%272.5%27 fill=%27none%27 stroke-linecap=%27round%27 stroke-linejoin=%27round%27/%3E%3C/svg%3E"/>
 <link rel="stylesheet" href="/assets/login.css"/>
-<style>
-    @layer base {
-      html, body {
-        margin: 0;
-        padding: 0;
-        font-family: 'Plus Jakarta Sans', sans-serif;
-      }
-      ::-webkit-scrollbar { display: none; }
-    }
-    .bubble-float {
-      filter: blur(52px);
-      transition: transform 0.6s cubic-bezier(0.16, 1, 0.3, 1);
-    }
-    .floating-card-pill {
-      transition: transform 0.35s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.35s ease;
-    }
-    .floating-card-pill:hover {
-      transform: translateY(-6px) scale(1.05) !important;
-      box-shadow: 0 16px 32px -6px rgba(255, 56, 92, 0.16), 0 8px 16px -4px rgba(0, 0, 0, 0.06);
-    }
-    .badge-chip {
-      transition: all 0.22s cubic-bezier(0.34, 1.56, 0.64, 1);
-    }
-    .badge-chip:hover {
-      transform: translateY(-2px) scale(1.04);
-    }
-    .badge-chip:active {
-      transform: scale(0.96);
-    }
-    .shimmer-mask {
-      position: absolute;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 100%;
-      pointer-events: none;
-      overflow: hidden;
-      border-radius: inherit;
-    }
-    .shimmer-mask::after {
-      content: '';
-      position: absolute;
-      top: -50%;
-      left: 0;
-      width: 45%;
-      height: 200%;
-      background: linear-gradient(90deg, rgba(255, 255, 255, 0) 0%, rgba(255, 255, 255, 0.38) 50%, rgba(255, 255, 255, 0) 100%);
-      transform: rotate(25deg);
-      animation: shimmerWave 3.4s infinite cubic-bezier(0.4, 0, 0.2, 1);
-    }
-    .input-focus-coral:focus {
-      outline: none;
-      border-color: #FF385C;
-      box-shadow: 0 0 0 4px rgba(255, 56, 92, 0.2), 0 0 16px rgba(255, 56, 92, 0.15);
-    }
-    #toggle-pill {
-      transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1), width 0.3s ease;
-    }
-    .sparkline-stroke {
-      stroke-dasharray: 200;
-      animation: drawSparkline 1.8s cubic-bezier(0.16, 1, 0.3, 1) forwards;
-    }
-    .delay-1 { animation-delay: 0.08s; }
-    .delay-2 { animation-delay: 0.16s; }
-    .delay-3 { animation-delay: 0.24s; }
-    .delay-4 { animation-delay: 0.32s; }
-  </style>
 </head>
-<body class="bg-surface-canvas text-text-primary antialiased min-h-screen relative flex items-center justify-center py-10 px-4 overflow-x-hidden selection:bg-[#FF385C] selection:text-white">
-<!-- Ambient mesh background -->
-<div class="fixed inset-0 pointer-events-none overflow-hidden z-0">
-<div class="absolute -top-28 -left-24 w-[460px] h-[460px] rounded-full bg-gradient-to-tr from-[#FFD2DC] via-[#FFE5EC] to-[#FFF0F4] bubble-float opacity-75 animate-mesh-ambient"></div>
-<div class="absolute top-1/4 -right-28 w-[500px] h-[500px] rounded-full bg-gradient-to-bl from-[#FFE8C7] via-[#FFF1D6] to-[#FFF8EA] bubble-float opacity-75 animate-mesh-ambient" style="animation-duration: 22s; animation-direction: reverse;"></div>
-<div class="absolute -bottom-28 left-1/5 w-[420px] h-[420px] rounded-full bg-gradient-to-r from-[#FFE2E7] via-[#FFEDF1] to-[#FFEBE4] bubble-float opacity-65 animate-mesh-ambient" style="animation-duration: 25s;"></div>
-<!-- Floating badges: filled with live numbers from the server -->
-<div class="hidden lg:flex items-center gap-2.5 absolute top-16 left-16 bg-white/95 backdrop-blur-md px-4 py-2.5 rounded-2xl shadow-lg shadow-black/5 border border-pink-100/70 floating-card-pill animate-float-1 select-none">
-<span class="text-xl">🛏️</span>
-<div class="text-xs">
-<p class="font-bold text-text-primary leading-snug" id="badge-rooms">Hostel rooms</p>
-<p class="text-amber-warm font-semibold text-[11px]" id="badge-rooms-sub">Loading…</p>
-</div>
-</div>
-<div class="hidden lg:flex items-center gap-2.5 absolute top-28 right-16 bg-white/95 backdrop-blur-md px-4 py-2.5 rounded-2xl shadow-lg shadow-black/5 border border-orange-100/70 floating-card-pill animate-float-2 select-none">
-<span class="text-xl">🎯</span>
-<div class="text-xs">
-<p class="font-bold text-text-primary leading-snug" id="badge-pool">Open swap requests</p>
-<p class="text-[#FF385C] font-semibold text-[11px]">In the matching pool</p>
-</div>
-</div>
-<div class="hidden lg:flex items-center gap-2.5 absolute bottom-20 left-20 bg-white/95 backdrop-blur-md px-4 py-2.5 rounded-2xl shadow-lg shadow-black/5 border border-amber-100/70 floating-card-pill animate-float-3 select-none">
-<span class="text-xl">🎒</span>
-<div class="text-xs">
-<p class="font-bold text-text-primary leading-snug" id="badge-yield">Last matching round</p>
-<p class="text-success-mint font-semibold text-[11px]" id="badge-yield-sub">Loading…</p>
-</div>
-</div>
-<div class="hidden lg:flex items-center gap-2.5 absolute bottom-24 right-24 bg-white/95 backdrop-blur-md px-4 py-2.5 rounded-2xl shadow-lg shadow-black/5 border border-pink-100/70 floating-card-pill animate-float-4 select-none">
-<span class="text-xl">⚡</span>
-<div class="text-xs">
-<p class="font-bold text-text-primary leading-snug">Multi-way swaps</p>
-<p class="text-text-secondary font-medium text-[11px]">A → B → C → A chains</p>
-</div>
-</div>
-</div>
-<main class="w-full max-w-[460px] mx-auto relative z-10 animate-fade-in-stagger">
-<div class="flex flex-col w-full">
-<div class="relative bg-white rounded-3xl shadow-[0_20px_50px_rgba(255,56,92,0.12)] border border-pink-100/70 p-6 sm:p-8 transition-all duration-300 hover:shadow-[0_24px_55px_rgba(255,56,92,0.15)]">
-<!-- Header -->
-<div class="flex items-center justify-between pb-5 mb-5 border-b border-border-hairline animate-fade-in-stagger delay-1">
-<div class="flex items-center gap-2.5">
-<div class="w-10 h-10 rounded-2xl bg-gradient-to-tr from-[#FF385C] to-[#FF6B6B] text-white flex items-center justify-center font-bold text-lg shadow-md shadow-primary/30 transform transition-transform duration-300 hover:rotate-12 hover:scale-105">
-              🎓
+<body>
+<div class="min-h-screen flex flex-col">
+  <header class="max-w-6xl w-full mx-auto px-4 sm:px-6 h-14 flex items-center">
+    <a class="brand" href="/"><span class="brand-mark"><span class="material-symbols-outlined text-[18px]" aria-hidden="true">sync_alt</span></span>CampusSwap</a>
+  </header>
+
+  <main class="flex-1 max-w-6xl w-full mx-auto px-4 sm:px-6 py-8 sm:py-12">
+    <div class="grid gap-10 lg:grid-cols-[minmax(0,440px)_minmax(0,1fr)] lg:gap-16 items-start">
+
+      <!-- Sign-in form -->
+      <section class="card card-pad sm:p-6 min-w-0" aria-labelledby="panel-title">
+        <h1 class="page-title" id="panel-title">Sign in</h1>
+        <p class="muted mt-1.5 leading-relaxed" id="panel-desc">Use your Thapar email to rank rooms and follow your swap.</p>
+
+        <div class="mt-5 flex gap-1 p-1 rounded-lg bg-sunken border border-line" role="tablist" aria-label="Sign in as">
+          <button class="role-tab flex-auto h-8 rounded-md text-sm font-semibold whitespace-nowrap transition-colors px-2 bg-raised text-ink" id="tab-student" data-role="student" role="tab" type="button" aria-selected="true" aria-controls="auth-form" tabindex="0">Student</button>
+          <button class="role-tab flex-auto h-8 rounded-md text-sm font-semibold whitespace-nowrap transition-colors px-2 text-ink-3 hover:text-ink" id="tab-admin" data-role="admin" role="tab" type="button" aria-selected="false" aria-controls="auth-form" tabindex="-1">Hostel staff</button>
+          <button class="role-tab flex-auto h-8 rounded-md text-sm font-semibold whitespace-nowrap transition-colors px-2 text-ink-3 hover:text-ink" id="tab-faculty" data-role="faculty" role="tab" type="button" aria-selected="false" aria-controls="auth-form" tabindex="-1">Faculty</button>
+        </div>
+
+        <form class="mt-5 space-y-4" id="auth-form" role="tabpanel" aria-labelledby="tab-student" novalidate>
+          <div>
+            <label class="label" for="campus-identity">Thapar email</label>
+            <input autocomplete="username" class="field" id="campus-identity" placeholder="yourname_be24@thapar.edu" required type="email" spellcheck="false" aria-describedby="domain-indicator"/>
+            <div class="mt-2 flex items-center justify-between gap-3 min-w-0">
+              <p class="flex items-center gap-1.5 text-xs faint min-w-0" id="domain-indicator" aria-live="polite">
+                <span class="material-symbols-outlined text-[16px]" aria-hidden="true">mail</span><span class="truncate">Must end with @thapar.edu</span>
+              </p>
+              <button class="btn-ghost btn-sm shrink-0" id="chip-domain" type="button" aria-label="Add @thapar.edu to the email">+ @thapar.edu</button>
             </div>
-<div>
-<div class="flex items-center gap-1.5">
-<span class="font-extrabold text-lg tracking-tight text-text-primary">CampusSwap</span>
-<span class="hidden sm:inline-flex whitespace-nowrap text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-coral-subtle text-primary border border-primary/20">Peer-to-Peer</span>
+          </div>
+
+          <div>
+            <label class="label" for="password">Password</label>
+            <div class="relative">
+              <input autocomplete="current-password" class="field pr-11" id="password" required type="password"/>
+              <button class="icon-btn absolute right-0.5 top-0.5 w-9 h-9" id="toggle-password" type="button" aria-label="Show password" aria-pressed="false">
+                <span class="material-symbols-outlined text-[20px]" id="toggle-password-icon" aria-hidden="true">visibility</span>
+              </button>
+            </div>
+          </div>
+
+          <div id="form-notice" aria-live="polite"></div>
+
+          <button class="btn-primary w-full h-10" id="btn-submit" type="submit">Sign in</button>
+
+          <p class="text-xs faint">Forgot your password? Ask the hostel office.</p>
+        </form>
+
+        <div class="mt-6 pt-5 border-t border-line">
+          <h2 class="text-sm font-semibold text-ink">Demo accounts</h2>
+          <p class="text-xs faint mt-1">For trying the prototype. Fills in the email and the password campus123.</p>
+          <p class="text-xs text-brass mt-1 flex items-center gap-1.5" id="demo-mode" hidden><span class="material-symbols-outlined text-[16px]" aria-hidden="true">timer</span><span id="demo-mode-text"></span></p>
+          <div class="mt-3 grid gap-2">
+            <button class="btn-secondary justify-start" data-demo="student" type="button"><span class="material-symbols-outlined text-[18px] text-ink-3" aria-hidden="true">school</span>Use a demo student account</button>
+            <button class="btn-secondary justify-start" data-demo="admin" type="button"><span class="material-symbols-outlined text-[18px] text-ink-3" aria-hidden="true">badge</span>Use a demo hostel staff account</button>
+            <button class="btn-secondary justify-start" data-demo="faculty" type="button"><span class="material-symbols-outlined text-[18px] text-ink-3" aria-hidden="true">co_present</span>Use a demo faculty account</button>
+          </div>
+        </div>
+      </section>
+
+      <!-- What CampusSwap does, with live numbers -->
+      <aside class="min-w-0 lg:pt-6" aria-labelledby="about-title">
+        <h2 class="section-title" id="about-title">What CampusSwap does</h2>
+        <div class="mt-3 space-y-3 muted leading-relaxed max-w-prose">
+          <p>Students list the hostel rooms they would rather live in. CampusSwap looks for chains of students who can all move at once, so a swap does not need two people who want each other's rooms.</p>
+          <p>Everyone in a chain confirms, then hostel staff approve the move. Faculty swap weekly lecture slots the same way.</p>
+        </div>
+
+        <div class="mt-8 border-t border-line pt-6" id="stats" aria-live="polite" aria-busy="true">
+          <dl class="grid grid-cols-1 sm:grid-cols-3 gap-5">
+            <div class="min-w-0">
+              <dt class="text-xs faint">Open swap requests</dt>
+              <dd class="mt-1"><span class="skeleton inline-block h-7 w-14 align-middle" data-stat="open">&nbsp;</span></dd>
+              <dd class="text-xs faint mt-1 truncate" data-stat="open-sub">&nbsp;</dd>
+            </div>
+            <div class="min-w-0">
+              <dt class="text-xs faint">Rooms</dt>
+              <dd class="mt-1"><span class="skeleton inline-block h-7 w-14 align-middle" data-stat="rooms">&nbsp;</span></dd>
+              <dd class="text-xs faint mt-1 truncate" data-stat="rooms-sub">&nbsp;</dd>
+            </div>
+            <div class="min-w-0">
+              <dt class="text-xs faint">Last matching round</dt>
+              <dd class="mt-1"><span class="skeleton inline-block h-7 w-14 align-middle" data-stat="yield">&nbsp;</span></dd>
+              <dd class="text-xs faint mt-1 truncate" data-stat="yield-sub">&nbsp;</dd>
+            </div>
+          </dl>
+
+          <figure class="mt-6">
+            <figcaption class="text-xs faint">Swap requests sent per day, last 7 days</figcaption>
+            <div class="mt-2 h-16 skeleton" id="spark-box">
+              <svg class="w-full h-full overflow-visible" viewBox="0 0 300 60" preserveAspectRatio="none" fill="none" aria-hidden="true" id="spark-svg" hidden>
+                <line x1="0" y1="59.5" x2="300" y2="59.5" class="stroke-line" stroke-width="1" vector-effect="non-scaling-stroke"/>
+                <path id="spark-line" class="stroke-brass" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" vector-effect="non-scaling-stroke" d=""/>
+              </svg>
+            </div>
+            <div class="mt-1.5 flex justify-between text-xs faint"><span>6 days ago</span><span>Today</span></div>
+            <p class="sr-only" id="spark-text"></p>
+          </figure>
+
+          <p class="text-sm faint" id="stats-error" hidden>Live numbers unavailable right now.</p>
+        </div>
+      </aside>
+    </div>
+  </main>
+
+  <footer class="max-w-6xl w-full mx-auto px-4 sm:px-6 py-6">
+    <p class="text-xs faint">Prototype for UCS503 · demo data</p>
+  </footer>
 </div>
-<p class="text-[11px] font-medium text-text-secondary">Thapar hostel room exchange</p>
-</div>
-</div>
-<div class="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-sunny-amber border border-amber-200/60 shadow-xs">
-<div class="relative flex items-center justify-center w-2 h-2">
-<span class="absolute w-2 h-2 rounded-full bg-amber-accent animate-ping opacity-75"></span>
-<span class="relative w-2 h-2 rounded-full bg-amber-accent"></span>
-</div>
-<span class="text-[11px] font-bold text-[#A75D00] whitespace-nowrap">Requests open</span>
-</div>
-</div>
-<!-- Student / Staff switch -->
-<div class="relative bg-stone-100/90 p-1 rounded-2xl flex items-center mb-6 shadow-inner border border-stone-200/50 animate-fade-in-stagger delay-1 overflow-hidden" id="segmented-container" role="tablist" aria-label="Sign in as">
-<div class="absolute top-1 bottom-1 left-1 w-[calc(50%-4px)] bg-white rounded-xl shadow-[0_3px_10px_rgba(0,0,0,0.08)] border border-stone-200/40 pointer-events-none transition-transform duration-300 ease-[cubic-bezier(0.34,1.56,0.64,1)]" id="toggle-pill"></div>
-<button aria-selected="true" class="relative z-10 flex-1 flex items-center justify-center gap-2 py-2.5 text-center font-bold text-xs sm:text-sm rounded-xl transition-colors duration-200 text-primary cursor-pointer" id="tab-student" role="tab" type="button">
-<span class="material-symbols-outlined text-[17px] text-primary transition-colors" id="student-icon">school</span>
-<span class="whitespace-nowrap">Student<span class="hidden sm:inline"> (@thapar.edu)</span></span>
-</button>
-<button aria-selected="false" class="relative z-10 flex-1 flex items-center justify-center gap-2 py-2.5 text-center font-medium text-xs sm:text-sm rounded-xl transition-colors duration-200 text-text-secondary hover:text-text-primary cursor-pointer" id="tab-admin" role="tab" type="button">
-<span class="material-symbols-outlined text-[17px] transition-colors" id="admin-icon">shield_person</span>
-<span>Hostel Staff</span>
-</button>
-</div>
-<!-- Title -->
-<div class="mb-5 text-left animate-fade-in-stagger delay-2">
-<div class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-md bg-coral-subtle text-primary text-xs font-bold mb-2">
-<span>✨ Fair multi-way room swaps with campus peers</span>
-</div>
-<h1 class="text-2xl font-extrabold text-text-primary tracking-tight" id="panel-title">Find a better hostel room in a few clicks!</h1>
-<p class="text-xs sm:text-sm text-text-secondary mt-1.5 font-normal leading-relaxed" id="panel-desc">Sign in with your Thapar email to browse rooms, rank your choices and track your swap.</p>
-</div>
-<!-- Form -->
-<form class="space-y-4 animate-fade-in-stagger delay-3" id="auth-form" novalidate>
-<div class="space-y-1.5">
-<div class="flex items-center justify-between flex-wrap gap-1.5">
-<label class="text-xs font-bold text-text-primary tracking-wide flex items-center gap-1 whitespace-nowrap" for="campus-identity" id="label-identity">
-<span>Thapar Email Address</span>
-<span class="text-primary">*</span>
-</label>
-<span class="font-mono text-[11px] font-semibold text-text-tertiary bg-stone-100 px-2 py-0.5 rounded-full flex items-center gap-1 transition-all" id="domain-indicator">
-<span class="material-symbols-outlined text-[13px]">sync</span> Waiting for @thapar.edu
-</span>
-</div>
-<div class="relative group">
-<div class="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-text-tertiary group-focus-within:text-primary transition-colors">
-<span class="material-symbols-outlined text-[19px]">mail</span>
-</div>
-<input autocomplete="username" class="input-focus-coral w-full pl-10 pr-3 sm:pr-28 py-3 bg-stone-50/70 border border-stone-200/80 rounded-xl text-sm font-medium text-text-primary shadow-xs transition-all duration-200 placeholder:text-stone-400 focus:bg-white" id="campus-identity" placeholder="yourname_be24@thapar.edu" required="" type="email"/>
-<div class="absolute inset-y-0 right-0 pr-2.5 hidden sm:flex items-center pointer-events-none">
-<span class="font-mono text-[10px] font-bold tracking-wider bg-coral-subtle text-primary px-2 py-1 rounded-md border border-pink-200/50">INSTITUTE ID</span>
-</div>
-</div>
-<div class="flex items-center gap-1.5 pt-1.5 overflow-x-auto pb-1" id="quick-domains">
-<span class="text-[11px] font-bold text-text-tertiary mr-0.5 shrink-0">Quick:</span>
-<button class="badge-chip font-mono text-[11px] font-medium px-2.5 py-1 rounded-lg bg-stone-100 hover:bg-coral-subtle hover:text-primary text-text-secondary border border-stone-200/60 shadow-2xs cursor-pointer select-none" id="chip-domain" type="button">@thapar.edu</button>
-</div>
-</div>
-<div class="space-y-1.5">
-<label class="text-xs font-bold text-text-primary flex items-center justify-between" for="password">
-<span>Password <span class="text-primary">*</span></span>
-<span class="text-text-tertiary text-[11px] font-normal">Case sensitive</span>
-</label>
-<div class="relative group">
-<div class="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-text-tertiary group-focus-within:text-primary transition-colors">
-<span class="material-symbols-outlined text-[19px]">lock</span>
-</div>
-<input autocomplete="current-password" class="input-focus-coral w-full pl-10 pr-11 py-3 bg-stone-50/70 border border-stone-200/80 rounded-xl text-sm text-text-primary shadow-xs transition-all duration-200 placeholder:text-stone-400 focus:bg-white" id="password" placeholder="••••••••" required="" type="password"/>
-<button aria-label="Show password" class="absolute inset-y-0 right-0 pr-3 flex items-center text-text-tertiary hover:text-primary transition-colors" id="toggle-password" type="button">
-<span class="material-symbols-outlined text-[19px]" id="toggle-password-icon">visibility</span>
-</button>
-</div>
-</div>
-<button class="relative w-full flex items-center justify-between px-5 py-3.5 bg-primary hover:bg-primary-hover text-white rounded-xl font-bold text-sm shadow-[0_6px_20px_rgba(255,56,92,0.35)] hover:shadow-[0_10px_28px_rgba(255,56,92,0.48)] hover:scale-[1.02] active:scale-[0.98] active:translate-y-0 transition-all duration-200 group cursor-pointer overflow-hidden disabled:opacity-90 disabled:hover:scale-100" id="btn-submit" type="submit">
-<div class="shimmer-mask"></div>
-<span class="flex items-center gap-2 relative z-10" id="btn-text">
-<span>Sign in to CampusSwap</span>
-<span class="material-symbols-outlined text-[18px] transition-transform duration-200 group-hover:translate-x-1.5">arrow_forward</span>
-</span>
-<span class="relative z-10 text-[11px] font-mono font-semibold px-2 py-0.5 rounded-md bg-white/20 text-white backdrop-blur-xs hidden sm:flex items-center gap-0.5 shadow-inner">
-<span>Instant</span> ⚡
-</span>
-</button>
-<div class="flex items-center justify-between pt-1">
-<span class="text-xs font-semibold text-text-secondary flex items-center gap-1">
-<span class="material-symbols-outlined text-[15px]">help</span>
-<span>Forgot password? Ask the hostel office.</span>
-</span>
-<span class="text-[10px] font-mono text-text-tertiary bg-stone-100 px-2 py-0.5 rounded">PROTOTYPE</span>
-</div>
-</form>
-<!-- Notice box (also shows errors / success) -->
-<div aria-live="polite" class="mt-5 p-3 rounded-2xl bg-coral-subtle/70 border border-pink-100 transition-all duration-200" id="notice-box">
-<div class="flex items-start gap-2.5">
-<div class="w-8 h-8 rounded-xl bg-white text-primary flex items-center justify-center shrink-0 shadow-xs border border-pink-100 animate-bounce-shield">
-<span class="material-symbols-outlined text-[18px]">verified_user</span>
-</div>
-<div class="text-left text-xs">
-<p class="font-bold text-text-primary leading-tight">Your password is never stored as plain text</p>
-<p class="text-text-secondary mt-0.5 text-[11px] leading-relaxed">CampusSwap keeps only a scrambled (hashed) copy, and your sign-in ends automatically after 12 hours.</p>
-</div>
-</div>
-</div>
-<!-- Demo accounts -->
-<div class="mt-5 pt-4 border-t border-border-hairline">
-<p class="text-[11px] font-bold text-text-tertiary uppercase tracking-wider mb-2.5 text-center">Demo accounts · password campus123</p>
-<div class="grid grid-cols-2 gap-2">
-<button class="badge-chip flex items-center justify-center gap-2 py-2 px-3 rounded-xl bg-stone-50 hover:bg-stone-100/80 border border-stone-200/70 transition text-text-primary text-xs font-semibold cursor-pointer" data-demo="student" type="button">
-<span class="w-2 h-2 rounded-full bg-success-mint"></span>
-<span>Use student demo</span>
-</button>
-<button class="badge-chip flex items-center justify-center gap-2 py-2 px-3 rounded-xl bg-stone-50 hover:bg-stone-100/80 border border-stone-200/70 transition text-text-primary text-xs font-semibold cursor-pointer" data-demo="admin" type="button">
-<span class="w-2 h-2 rounded-full bg-primary"></span>
-<span>Use hostel staff demo</span>
-</button>
-</div>
-</div>
-<div class="mt-5 flex items-center justify-center gap-2 text-text-secondary text-xs font-medium text-center">
-<span class="material-symbols-outlined text-[16px] text-success-mint animate-bounce-shield">shield</span>
-<span>Protected by hashed passwords and secure session cookies</span>
-</div>
-</div>
-<!-- Live pool card -->
-<div class="mt-4 bg-white/95 backdrop-blur-md rounded-2xl p-4 sm:p-5 shadow-[0_8px_25px_rgba(0,0,0,0.04)] hover:shadow-[0_12px_32px_rgba(255,56,92,0.1)] hover:-translate-y-0.5 transition-all duration-300 border border-amber-100/80 group animate-fade-in-stagger delay-4" title="Live numbers from the CampusSwap server">
-<div class="flex items-center justify-between mb-3 gap-2">
-<div class="flex items-center gap-2">
-<span class="text-xs font-extrabold uppercase tracking-wide text-text-primary flex items-center gap-1.5">
-<span>🔥 Matching pool</span>
-</span>
-<div class="flex items-center gap-1 px-2 py-0.5 rounded-md bg-sunny-amber font-bold text-[10px] text-amber-warm border border-amber-200/50">
-<span class="relative flex h-1.5 w-1.5">
-<span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-warm opacity-75"></span>
-<span class="relative inline-flex rounded-full h-1.5 w-1.5 bg-amber-warm"></span>
-</span>
-<span>LIVE</span>
-</div>
-</div>
-<div class="flex items-center gap-1.5 text-xs font-bold text-success-mint bg-mint-subtle px-2.5 py-0.5 rounded-full">
-<div class="relative flex h-2 w-2">
-<span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-success-mint opacity-75"></span>
-<span class="relative inline-flex rounded-full h-2 w-2 bg-success-mint"></span>
-</div>
-<span>REQUESTS OPEN</span>
-</div>
-</div>
-<div class="flex items-center justify-between gap-4">
-<div>
-<div class="flex items-baseline gap-1.5">
-<div class="text-2xl sm:text-3xl font-extrabold text-text-primary leading-none tracking-tight" id="stat-open">—</div>
-<span class="text-xs font-bold text-primary">open requests</span>
-</div>
-<div class="text-xs text-text-secondary mt-1" id="stat-open-sub">Students waiting to swap</div>
-</div>
-<div class="w-28 sm:w-32 h-10 shrink-0 relative animate-spark-glow" title="Requests submitted per day, last 7 days">
-<svg class="w-full h-full text-primary overflow-visible" fill="none" viewBox="0 0 128 36" xmlns="http://www.w3.org/2000/svg">
-<defs>
-<linearGradient id="coralGrad" x1="0" x2="1" y1="0" y2="0">
-<stop offset="0%" stop-color="#FFA114"></stop>
-<stop offset="100%" stop-color="#FF385C"></stop>
-</linearGradient>
-<linearGradient id="areaGrad" x1="0" x2="0" y1="0" y2="1">
-<stop offset="0%" stop-color="#FF385C" stop-opacity="0.3"></stop>
-<stop offset="100%" stop-color="#FF385C" stop-opacity="0"></stop>
-</linearGradient>
-</defs>
-<path class="sparkline-stroke" d="M0 32 L128 32" id="spark-line" stroke="url(#coralGrad)" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.8"></path>
-<path d="M0 32 L128 32 V36 H0 Z" fill="url(#areaGrad)" id="spark-area"></path>
-<circle class="animate-ping" cx="128" cy="32" fill="#FF385C" id="spark-ping" opacity="0.6" r="5"></circle>
-<circle cx="128" cy="32" fill="#FF385C" id="spark-dot" r="3.5"></circle>
-</svg>
-</div>
-</div>
-<div class="grid grid-cols-2 gap-2 mt-3 pt-3 border-t border-border-hairline text-[11px]">
-<div class="flex items-center gap-1.5 text-text-secondary">
-<span class="material-symbols-outlined text-[15px] text-success-mint">verified</span>
-<span class="font-medium">Live from the server</span>
-</div>
-<div class="flex items-center justify-end gap-1 text-text-secondary font-mono">
-<span>Last yield:</span>
-<span class="font-bold text-text-primary text-xs" id="stat-yield">—</span>
-</div>
-</div>
-</div>
-<div class="mt-4 text-center animate-fade-in-stagger delay-4">
-<p class="text-[11px] text-text-tertiary">🏫 Built for Thapar hostel students · UCS503P prototype · all data shown is demo data.</p>
-</div>
-</div>
-</main>
 <script src="/js/login.js" type="module"></script>
 </body></html>

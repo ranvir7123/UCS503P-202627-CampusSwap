@@ -2,246 +2,209 @@
 <html lang="en"><head>
 <meta charset="utf-8"/>
 <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
-<title>CampusSwap · Explore Rooms</title>
+<title>CampusSwap · Find rooms</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 32 32%27%3E%3Crect width=%2732%27 height=%2732%27 rx=%277%27 fill=%27%23D4B06A%27/%3E%3Cpath d=%27M9 12h13l-3-3M23 20H10l3 3%27 stroke=%27%231A1408%27 stroke-width=%272.5%27 fill=%27none%27 stroke-linecap=%27round%27 stroke-linejoin=%27round%27/%3E%3C/svg%3E"/>
 <link rel="stylesheet" href="/assets/rooms.css"/>
-<style>
-    @layer base {
-      html, body { margin: 0; padding: 0; font-family: 'Plus Jakarta Sans', sans-serif; }
-      body { overscroll-behavior: none; }
-    }
-    .no-scrollbar::-webkit-scrollbar { display: none; }
-    .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
-    @keyframes fadeInUp { 0% { opacity: 0; transform: translateY(18px); } 100% { opacity: 1; transform: translateY(0); } }
-    @keyframes pulse-gentle { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: 0.9; transform: scale(1.03); } }
-    @keyframes vacant-pulse {
-      0%, 100% { box-shadow: 0 0 0 0 rgba(52, 211, 153, 0.45); border-color: rgba(52, 211, 153, 0.8); }
-      50% { box-shadow: 0 0 0 6px rgba(52, 211, 153, 0); border-color: rgba(110, 231, 183, 1); }
-    }
-    @keyframes radar-pulse { 0% { opacity: 0.9; transform: scale(0.95); } 50% { opacity: 0.3; transform: scale(1.25); } 100% { opacity: 0.9; transform: scale(0.95); } }
-    @keyframes shimmer-sweep { 0% { transform: translateX(-150%) skewX(-20deg); } 100% { transform: translateX(250%) skewX(-20deg); } }
-    @keyframes dash-wave { 0% { stroke-dashoffset: 80; } 100% { stroke-dashoffset: 0; } }
-    @keyframes dashed-shimmer {
-      0%, 100% { border-color: rgba(209, 213, 219, 0.7); background-color: rgba(249, 250, 251, 0.5); }
-      50% { border-color: rgba(244, 63, 94, 0.4); background-color: rgba(255, 241, 242, 0.4); }
-    }
-    .stagger-in { animation: fadeInUp 0.55s cubic-bezier(0.16, 1, 0.3, 1) both; }
-    .hostel-card-lift { transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1); }
-    .hostel-card-lift:hover { transform: translateY(-5px); box-shadow: 0 16px 32px -8px rgba(226, 30, 74, 0.12), 0 8px 16px -4px rgba(0, 0, 0, 0.04); }
-    .schematic-box { transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.4s ease; transform-origin: center; perspective: 800px; }
-    .hostel-card-lift:hover .schematic-box { transform: scale(1.02) rotateX(1deg); box-shadow: 0 12px 24px -6px rgba(15, 23, 42, 0.35); }
-    .vacant-bed-glow { animation: vacant-pulse 2.2s infinite ease-in-out; }
-    .radar-icon-anim { animation: radar-pulse 2.6s infinite ease-in-out; }
-    .animate-pulse-gentle { animation: pulse-gentle 2.4s infinite ease-in-out; }
-    .btn-rank-cta { position: relative; overflow: hidden; transition: all 0.22s cubic-bezier(0.16, 1, 0.3, 1); }
-    .btn-rank-cta:hover:not(:disabled) { transform: translateY(-1.5px) scale(1.02); box-shadow: 0 8px 16px -3px rgba(224, 11, 65, 0.35); }
-    .btn-rank-cta:active:not(:disabled) { transform: scale(0.96); }
-    .pill-btn { transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1); cursor: pointer; }
-    .pill-btn:hover { transform: translateY(-1.5px); box-shadow: 0 4px 10px -2px rgba(0, 0, 0, 0.07); }
-    .pill-btn:active { transform: scale(0.97); }
-    .filter-chip-fade { transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1); }
-    .draggable-item { transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1); }
-    .draggable-item:hover { transform: translateX(4px); }
-    .draggable-item.dragging { opacity: 0.5; }
-    .draggable-item.drop-target { box-shadow: inset 0 3px 0 0 #FF385C; }
-    .remove-btn-spin { transition: transform 0.25s ease, color 0.2s ease, opacity 0.2s ease; }
-    .remove-btn-spin:hover { transform: rotate(90deg) scale(1.15); }
-    .empty-slot-pulse { animation: dashed-shimmer 3.2s infinite ease-in-out; transition: all 0.25s ease; }
-    .shimmer-button { position: relative; overflow: hidden; }
-    .shimmer-button::after {
-      content: ''; position: absolute; top: -50%; left: -50%; width: 200%; height: 200%;
-      background: linear-gradient(60deg, transparent 30%, rgba(255, 255, 255, 0.28) 50%, transparent 70%);
-      transform: translateX(-150%) skewX(-20deg); animation: shimmer-sweep 4.5s infinite ease-in-out; pointer-events: none;
-    }
-    .wave-line-anim { stroke-dasharray: 6 3; animation: dash-wave 12s linear infinite; }
-  </style>
 </head>
-<body class="bg-surface-subtle text-text-main antialiased min-h-screen selection:bg-airbnb-coral selection:text-white">
-<!-- Top navigation -->
-<header class="fixed top-0 left-0 right-0 z-50 bg-white/95 backdrop-blur-md border-b border-border-hairline shadow-xs transition-shadow duration-300">
-<div class="max-w-7xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between gap-4">
-<div class="flex items-center gap-8 min-w-0">
-<a class="flex items-center gap-3 group min-w-0" href="/dashboard.html">
-<div class="w-9 h-9 shrink-0 rounded-xl bg-airbnb-coral flex items-center justify-center text-white shadow-md shadow-airbnb-coral/20 group-hover:scale-105 group-hover:rotate-3 transition-transform duration-300">
-<span class="material-symbols-outlined text-[22px]">apartment</span>
-</div>
-<div class="flex flex-col min-w-0">
-<div class="flex items-center gap-2">
-<span class="font-extrabold text-lg tracking-tight text-text-main group-hover:text-airbnb-coral transition-colors">CampusSwap</span>
-<span class="hidden sm:inline text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-airbnb-coral-subtle text-airbnb-coral border border-airbnb-coral/20 whitespace-nowrap">Campus Hostels</span>
-</div>
-<div class="hidden sm:flex items-center gap-1.5 text-[11px] text-text-light font-medium">
-<span class="relative flex h-2 w-2">
-<span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-airbnb-coral opacity-75"></span>
-<span class="relative inline-flex rounded-full h-2 w-2 bg-airbnb-coral"></span>
-</span>
-<span>Requests open • Rooms in your eligible hostels</span>
-</div>
-</div>
-</a>
-<nav class="hidden lg:flex items-center gap-1">
-<a class="px-3.5 py-1.5 rounded-full text-sm font-medium text-text-muted hover:text-text-main hover:bg-slate-100 transition-all duration-200" href="/dashboard.html">Dashboard</a>
-<a aria-current="page" class="px-3.5 py-1.5 rounded-full text-sm font-bold text-airbnb-coral bg-airbnb-coral-subtle border border-airbnb-coral/20 flex items-center gap-1.5 shadow-xs transition-all duration-200 hover:shadow-sm" href="/rooms.html">
-<span class="material-symbols-outlined text-[17px]">explore</span>
-            Explore Rooms
-          </a>
-<a class="px-3.5 py-1.5 rounded-full text-sm font-medium text-text-muted hover:text-text-main hover:bg-slate-100 transition-all duration-200" href="/dashboard.html#swap-chain">Swap Chain</a>
+<body class="min-h-screen">
+<header class="topbar"><div class="topbar-inner">
+  <a class="brand" href="/"><span class="brand-mark"><span class="material-symbols-outlined text-[18px]" aria-hidden="true">sync_alt</span></span>CampusSwap</a>
+  <nav class="hidden sm:flex items-center gap-1" aria-label="Pages">
+    <a class="nav-link" href="/dashboard.html">My swap</a>
+    <a class="nav-link" href="/rooms.html" aria-current="page">Find rooms</a>
+  </nav>
+  <div class="ml-auto flex items-center gap-3">
+    <div class="avatar" data-user-initials></div>
+    <div class="hidden md:flex flex-col leading-tight min-w-0 max-w-[200px]"><span class="text-sm font-semibold truncate" data-user-name>…</span><span class="text-xs faint truncate" data-user-sub></span></div>
+    <button class="icon-btn" data-logout type="button" aria-label="Sign out" title="Sign out"><span class="material-symbols-outlined text-[20px]" aria-hidden="true">logout</span></button>
+  </div>
+</div></header>
+
+<!-- Page links for phones (the top bar hides them below 640px). -->
+<nav class="sm:hidden border-b border-line" aria-label="Pages">
+  <div class="max-w-6xl mx-auto px-4 flex items-center gap-1 h-12">
+    <a class="nav-link" href="/dashboard.html">My swap</a>
+    <a class="nav-link" href="/rooms.html" aria-current="page">Find rooms</a>
+  </div>
 </nav>
-</div>
-<div class="flex items-center gap-3">
-<label class="hidden sm:flex items-center border border-gray-200 rounded-full px-3 py-1.5 bg-white shadow-xs hover:border-gray-300 hover:shadow-sm transition-all duration-200 focus-within:border-airbnb-coral focus-within:ring-2 focus-within:ring-airbnb-coral/20 group">
-<span class="material-symbols-outlined text-[18px] text-airbnb-coral mr-2 group-focus-within:scale-110 transition-transform">travel_explore</span>
-<input aria-label="Search rooms" class="border-0 p-0 text-xs focus:ring-0 text-text-main placeholder:text-text-light w-40 lg:w-48 bg-transparent" id="search" placeholder="Search hostel, block, room #..." type="search"/>
-</label>
-<div class="h-6 w-px bg-gray-200 hidden sm:block"></div>
-<div class="flex items-center gap-2 pl-1 pr-2.5 py-1 rounded-full border border-gray-200 bg-white">
-<div class="w-7 h-7 rounded-full bg-gradient-to-tr from-airbnb-coral to-rose-400 text-white font-mono text-[10px] font-bold flex items-center justify-center ring-2 ring-airbnb-emerald/30" data-user-initials=""></div>
-<div class="hidden md:flex flex-col text-left pr-1 max-w-[160px]">
-<span class="text-xs font-bold leading-tight text-text-main truncate" data-user-name="">…</span>
-<span class="text-[10px] text-airbnb-emerald font-semibold flex items-center gap-0.5 truncate"><span class="material-symbols-outlined text-[11px]">verified</span><span data-user-sub=""></span></span>
-</div>
-</div>
-<button class="w-9 h-9 rounded-full bg-gray-50 hover:bg-rose-50 flex items-center justify-center text-text-muted hover:text-airbnb-coral transition-all border border-gray-200 hover:border-airbnb-coral/30 active:scale-95" data-logout="" title="Sign out" type="button">
-<span class="material-symbols-outlined text-[20px]">logout</span>
-</button>
-</div>
-</div>
-</header>
-<main class="w-full pt-16 min-h-[calc(100vh-64px)] pb-16">
-<!-- Filter bar -->
-<div class="sticky top-16 z-40 bg-white/95 backdrop-blur-md border-b border-border-hairline shadow-xs py-3.5 transition-all">
-<div class="max-w-7xl mx-auto px-4 sm:px-6 flex flex-col gap-2.5">
-<div class="flex items-center justify-between gap-3 flex-wrap">
-<div class="flex items-center gap-2 overflow-x-auto no-scrollbar py-0.5 max-w-full" id="filter-pills">
-<label class="pill-btn relative h-9 pl-4 pr-3 rounded-full bg-airbnb-coral hover:bg-airbnb-coral-dark text-white font-semibold text-xs flex items-center gap-2 shadow-sm shadow-airbnb-coral/25 shrink-0">
-<span class="material-symbols-outlined text-[16px]">domain</span>
-<select aria-label="Hostel" class="bg-transparent border-0 p-0 pr-6 text-xs font-semibold text-white focus:ring-0 cursor-pointer [&>option]:text-text-main" id="filter-hostel"><option value="">All hostels</option></select>
-</label>
-<label class="pill-btn h-9 pl-3.5 pr-2 rounded-full border border-gray-200 bg-white hover:border-gray-400 text-text-main font-medium text-xs flex items-center gap-1.5 shadow-xs shrink-0">
-<span class="material-symbols-outlined text-[16px] text-airbnb-coral">layers</span>
-<select aria-label="Floor" class="bg-transparent border-0 p-0 pr-6 text-xs font-medium focus:ring-0 cursor-pointer" id="filter-floor"><option value="">Any floor</option><option value="1">Floor 1</option><option value="2">Floor 2</option><option value="3">Floor 3</option></select>
-</label>
-<label class="pill-btn h-9 pl-3.5 pr-2 rounded-full border border-gray-200 bg-white hover:border-gray-400 text-text-main font-medium text-xs flex items-center gap-1.5 shadow-xs shrink-0">
-<span class="material-symbols-outlined text-[16px] text-airbnb-coral">bed</span>
-<select aria-label="Room type" class="bg-transparent border-0 p-0 pr-6 text-xs font-medium focus:ring-0 cursor-pointer" id="filter-seater"><option value="">Any room type</option><option value="1">Single</option><option value="2">Double sharing</option><option value="3">Triple sharing</option></select>
-</label>
-<button aria-pressed="false" class="pill-btn filter-toggle-btn h-9 px-3.5 rounded-full border border-gray-200 bg-white text-text-muted font-medium text-xs flex items-center gap-1.5 shrink-0" data-toggle="ac" type="button">
-<span class="material-symbols-outlined text-[16px]">mode_fan</span><span>AC rooms</span>
-</button>
-<button aria-pressed="false" class="pill-btn filter-toggle-btn h-9 px-3.5 rounded-full border border-gray-200 bg-white text-text-muted font-medium text-xs flex items-center gap-1.5 shrink-0" data-toggle="attached" type="button">
-<span class="material-symbols-outlined text-[16px]">bathtub</span><span>Attached washroom</span>
-</button>
-<button aria-pressed="false" class="pill-btn filter-toggle-btn h-9 px-3.5 rounded-full border border-gray-200 bg-white text-text-muted font-medium text-xs flex items-center gap-1.5 shrink-0" data-toggle="open" type="button">
-<span class="material-symbols-outlined text-[16px] text-amber-500">swap_horiz</span><span>Someone wants to swap</span>
-</button>
-</div>
-<div class="flex items-center gap-2 ml-auto">
-<span class="text-xs text-text-light font-medium hidden md:inline" id="count-label">Loading rooms…</span>
-<div class="relative inline-flex p-1 bg-gray-100 rounded-full border border-gray-200">
-<button aria-pressed="true" class="relative z-10 px-2.5 py-1 rounded-full bg-white shadow-xs text-text-main text-xs font-bold flex items-center gap-1 transition-all duration-200" id="grid-view-btn" type="button"><span class="material-symbols-outlined text-[16px]">grid_view</span><span>Schematics</span></button>
-<button aria-pressed="false" class="relative z-10 px-2.5 py-1 rounded-full text-text-muted hover:text-text-main text-xs font-medium flex items-center gap-1 transition-all duration-200" id="table-view-btn" type="button"><span class="material-symbols-outlined text-[16px]">view_agenda</span><span>Compact</span></button>
-</div>
-</div>
-</div>
-<div class="flex items-center gap-2 pt-0.5 text-xs flex-wrap min-h-[22px]" id="active-filter-strip"></div>
-</div>
-</div>
-<div class="max-w-7xl mx-auto px-4 sm:px-6 pt-6">
-<div class="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
-<!-- Room cards -->
-<div class="lg:col-span-8 flex flex-col gap-5 order-2 lg:order-1">
-<div class="flex items-center justify-between gap-3 px-4 py-3 rounded-2xl bg-white border border-border-hairline shadow-xs flex-wrap">
-<div class="flex items-center gap-3 min-w-0">
-<span class="flex h-3 w-3 relative shrink-0">
-<span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-airbnb-emerald opacity-75"></span>
-<span class="relative inline-flex rounded-full h-3 w-3 bg-airbnb-emerald"></span>
-</span>
-<div class="min-w-0">
-<p class="text-xs font-bold text-text-main" id="feed-title">Loading rooms…</p>
-<p class="text-[11px] text-text-muted">Rank rooms you'd move to. The matching round finds chains where everyone gets something they prefer.</p>
-</div>
-</div>
-<label class="flex items-center gap-1 text-xs font-bold text-text-muted">
-<span>Sort:</span>
-<select class="border-0 bg-transparent p-0 pr-6 text-xs font-bold text-airbnb-coral focus:ring-0 cursor-pointer" id="sort">
-<option value="open">Open to swap first</option>
-<option value="hostel">Hostel &amp; room number</option>
-<option value="floor">Lowest floor first</option>
-</select>
-</label>
-</div>
-<div class="flex flex-col gap-5" id="room-list"></div>
-<div class="flex items-center justify-between py-4 text-xs font-semibold text-text-muted gap-3 flex-wrap" id="pagination"></div>
-</div>
-<!-- Ranked queue -->
-<aside class="lg:col-span-4 lg:sticky lg:top-40 flex flex-col gap-4 order-1 lg:order-2">
-<div class="bg-white rounded-2xl border border-gray-200 shadow-sm p-5 flex flex-col gap-4 transition-all duration-300 hover:shadow-md">
-<div class="flex items-start justify-between">
-<div>
-<div class="flex items-center gap-1 text-airbnb-coral">
-<span class="text-[10px] font-extrabold uppercase tracking-widest">Your swap request</span>
-<span class="material-symbols-outlined text-[14px] animate-bounce">bolt</span>
-</div>
-<h3 class="text-xl font-extrabold text-text-main tracking-tight mt-0.5">Ranked Queue</h3>
-</div>
-<span class="inline-flex items-center px-2.5 py-1 rounded-full bg-airbnb-coral-subtle text-airbnb-coral text-xs font-bold border border-airbnb-coral/20 whitespace-nowrap" id="queue-counter-badge">0 of 5 chosen</span>
-</div>
-<div>
-<div class="flex justify-between text-xs font-semibold mb-1">
-<span class="text-text-muted">Choices used</span>
-<span class="text-airbnb-coral font-bold" id="queue-progress-text">0 of 5</span>
-</div>
-<div class="w-full bg-gray-100 rounded-full h-2 overflow-hidden shadow-inner">
-<div class="bg-gradient-to-r from-airbnb-coral via-rose-500 to-pink-500 h-2 rounded-full transition-all duration-500 ease-out" id="queue-progress-bar" style="width: 0%"></div>
-</div>
-</div>
-<p class="text-xs text-text-muted leading-relaxed" id="queue-help">Put your favourite first. Drag to reorder (or use the arrows). Top Trading Cycles always tries your #1 first, then falls back to the next choice that is still free.</p>
-<div class="flex flex-col gap-2" id="ranked-queue-container"></div>
-<div class="p-3.5 rounded-xl bg-gradient-to-br from-emerald-50 via-teal-50 to-white border border-emerald-200/80 shadow-xs flex flex-col gap-1.5 relative overflow-hidden" id="yield-box">
-<div class="flex items-center justify-between gap-2">
-<span class="text-[11px] font-extrabold uppercase tracking-wide text-emerald-800 flex items-center gap-1">
-<span class="material-symbols-outlined text-[15px] text-airbnb-emerald">celebration</span>
-                  Last matching round
-                </span>
-<span class="text-xs font-extrabold px-2.5 py-0.5 rounded-full bg-emerald-600 text-white shadow-xs ring-2 ring-emerald-400/40 whitespace-nowrap" id="yield-pill">—</span>
-</div>
-<p class="text-[10px] text-emerald-900/80 leading-tight font-medium" id="yield-text">Loading…</p>
-</div>
-<div class="flex flex-col gap-2 pt-1">
-<button class="shimmer-button w-full h-11 rounded-full bg-airbnb-coral hover:bg-airbnb-coral-dark text-white font-extrabold text-sm flex items-center justify-center gap-2 shadow-md shadow-airbnb-coral/30 hover:shadow-lg hover:shadow-airbnb-coral/40 transition-all duration-200 active:scale-[0.97] disabled:opacity-50 disabled:cursor-not-allowed disabled:shadow-none" disabled="" id="lock-submit-btn" type="button">
-<span class="material-symbols-outlined text-[18px]">lock</span>
-<span>Lock Preferences &amp; Submit</span>
-</button>
-<button class="w-full h-9 rounded-full bg-gray-100 hover:bg-white hover:border-gray-300 border border-transparent text-text-main font-semibold text-xs flex items-center justify-center gap-1.5 transition-all duration-200 active:scale-[0.98] shadow-xs disabled:opacity-50" id="secondary-btn" type="button">
-<span class="material-symbols-outlined text-[15px] text-text-muted">backspace</span>
-<span>Clear list</span>
-</button>
-</div>
-</div>
-<div class="p-4 rounded-2xl bg-white border border-gray-200 shadow-xs hover:shadow-sm transition-all flex items-start gap-3 group">
-<div class="w-8 h-8 rounded-full bg-amber-50 border border-amber-200 flex items-center justify-center text-amber-700 flex-shrink-0 mt-0.5 group-hover:scale-110 transition-transform">
-<span class="material-symbols-outlined text-[18px]">info</span>
-</div>
-<div class="flex flex-col gap-0.5 text-xs">
-<span class="font-bold text-text-main">Hostel swap policy</span>
-<p class="text-[11px] text-text-muted leading-relaxed">Everyone in a swap chain must confirm, then the warden approves before anyone moves. You only see hostels you're allowed to live in.</p>
-</div>
-</div>
-</aside>
-</div>
-</div>
+
+<main class="max-w-6xl mx-auto px-4 sm:px-6 pt-6 sm:pt-8 pb-28 lg:pb-16">
+  <div class="mb-6">
+    <h1 class="page-title">Find rooms</h1>
+    <p class="muted mt-1 max-w-2xl">Pick up to 5 rooms you would rather live in, best first. A choice can be one exact room, or any room of a type you are happy with. The matching round then looks for chains where everyone gets something they prefer.</p>
+  </div>
+
+  <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+    <!-- Rooms: filters, list, pages -->
+    <section class="lg:col-span-8 flex flex-col gap-4 min-w-0" aria-labelledby="rooms-heading">
+      <h2 class="sr-only" id="rooms-heading">Rooms</h2>
+
+      <div class="card p-4 flex flex-col gap-3">
+        <div class="flex items-end gap-2">
+          <div class="flex-1 min-w-0">
+            <label class="label" for="search">Search</label>
+            <div class="relative">
+              <span class="material-symbols-outlined text-[18px] faint absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" aria-hidden="true">search</span>
+              <input class="field pl-9" id="search" placeholder="Hostel, block, room number or feature" type="search" autocomplete="off"/>
+            </div>
+          </div>
+          <button aria-controls="filter-panel" aria-expanded="false" class="btn-secondary h-10 sm:hidden shrink-0" id="filters-toggle" type="button">
+            <span class="material-symbols-outlined text-[18px]" aria-hidden="true">tune</span><span id="filters-toggle-label">Filters</span>
+          </button>
+        </div>
+
+        <div class="hidden sm:flex flex-col gap-3" id="filter-panel">
+          <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <div>
+              <label class="label" for="filter-hostel">Hostel</label>
+              <select class="field" id="filter-hostel"><option value="">All hostels</option></select>
+            </div>
+            <div>
+              <label class="label" for="filter-floor">Floor</label>
+              <select class="field" id="filter-floor"><option value="">Any floor</option></select>
+            </div>
+            <div>
+              <label class="label" for="filter-seater">Beds</label>
+              <select class="field" id="filter-seater">
+                <option value="">Any number of beds</option>
+                <option value="1">Single</option>
+                <option value="2">Double sharing</option>
+                <option value="3">Triple sharing</option>
+              </select>
+            </div>
+          </div>
+          <div class="flex flex-wrap items-center gap-2" role="group" aria-label="Only show">
+            <button aria-pressed="false" class="btn-secondary btn-sm" data-toggle="ac" type="button"><span class="material-symbols-outlined text-[16px]" aria-hidden="true">ac_unit</span>AC only</button>
+            <button aria-pressed="false" class="btn-secondary btn-sm" data-toggle="attached" type="button"><span class="material-symbols-outlined text-[16px]" aria-hidden="true">shower</span>Attached washroom</button>
+            <button aria-pressed="false" class="btn-secondary btn-sm" data-toggle="open" type="button"><span class="material-symbols-outlined text-[16px]" aria-hidden="true">swap_horiz</span>Someone wants to swap</button>
+          </div>
+        </div>
+
+        <div class="flex flex-wrap items-center gap-2 min-h-[24px] text-xs" id="active-filter-strip" aria-live="polite"></div>
+      </div>
+
+      <div class="flex items-center justify-between gap-3 flex-wrap">
+        <p class="text-sm muted min-w-0" id="count-label" aria-live="polite">Loading rooms…</p>
+        <div class="flex items-center gap-2 flex-wrap">
+          <label class="flex items-center gap-2 text-sm muted" for="sort">
+            <span>Sort</span>
+            <select class="field h-9 w-auto py-0 text-sm" id="sort">
+              <option value="open">Open to swap first</option>
+              <option value="hostel">Hostel and room number</option>
+              <option value="floor">Lowest floor first</option>
+            </select>
+          </label>
+          <div class="inline-flex p-0.5 rounded-lg bg-sunken border border-line" role="group" aria-label="Layout">
+            <button aria-pressed="true" class="h-8 px-2.5 rounded-md text-xs font-semibold flex items-center gap-1 bg-raised text-ink" id="grid-view-btn" type="button"><span class="material-symbols-outlined text-[16px]" aria-hidden="true">view_agenda</span>Detailed</button>
+            <button aria-pressed="false" class="h-8 px-2.5 rounded-md text-xs font-semibold flex items-center gap-1 text-ink-2 hover:text-ink" id="table-view-btn" type="button"><span class="material-symbols-outlined text-[16px]" aria-hidden="true">list</span>Compact</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="flex flex-col gap-3" id="room-list" aria-live="polite" aria-busy="true"></div>
+      <div class="flex items-center justify-between gap-3 flex-wrap text-sm muted" id="pagination"></div>
+    </section>
+
+    <!-- Your ranked choices. A side column on wide screens, a full-screen panel on phones. -->
+    <aside aria-labelledby="queue-title" class="hidden lg:flex flex-col gap-4 lg:col-span-4 lg:sticky lg:inset-auto lg:top-20 lg:z-auto lg:overflow-y-auto lg:max-h-[calc(100vh-6rem)] lg:bg-transparent lg:p-0 outline-none" id="queue-panel" tabindex="-1">
+      <div class="card card-pad flex flex-col gap-4">
+        <div class="flex items-start justify-between gap-3">
+          <div class="min-w-0">
+            <h2 class="section-title" id="queue-title">Your choices</h2>
+            <p class="text-xs faint mt-0.5" id="queue-counter-badge">0 of 5 chosen</p>
+          </div>
+          <button aria-label="Close your choices" class="icon-btn lg:hidden -mr-2 -mt-1" data-close-panel type="button"><span class="material-symbols-outlined text-[20px]" aria-hidden="true">close</span></button>
+        </div>
+
+        <div class="flex flex-col gap-3" id="locked-notice" hidden></div>
+
+        <p class="text-sm muted" id="queue-help">Put your favourite first. Use the arrows (or drag) to change the order. The matching round tries your first choice first, then the next one that is still free.</p>
+
+        <ol class="flex flex-col gap-2" id="ranked-queue-container" aria-live="polite"></ol>
+
+        <!-- Add a room type: "any room like this" -->
+        <div class="rounded-lg border border-line bg-sunken/60" id="type-box">
+          <button aria-controls="type-form" aria-expanded="false" class="w-full flex items-center justify-between gap-2 px-3.5 h-11 text-sm font-semibold text-ink rounded-lg hover:bg-raised/60" id="type-toggle" type="button">
+            <span class="flex items-center gap-2"><span class="material-symbols-outlined text-[18px] text-brass" aria-hidden="true">add</span>Add a room type</span>
+            <span class="material-symbols-outlined text-[20px] faint" aria-hidden="true" id="type-toggle-icon">expand_more</span>
+          </button>
+          <form class="px-3.5 pb-3.5 pt-1 flex flex-col gap-3" id="type-form" hidden novalidate>
+            <p class="text-xs faint">Happy with any room of a kind? Add a type instead of one exact room. Any room that fits counts as this choice.</p>
+            <div>
+              <label class="label" for="type-hostel">Hostel</label>
+              <select class="field" id="type-hostel"></select>
+            </div>
+            <div class="grid grid-cols-3 gap-2">
+              <div class="min-w-0">
+                <label class="label" for="type-seater">Beds</label>
+                <select class="field" id="type-seater">
+                  <option value="">Any</option>
+                  <option value="1">1</option>
+                  <option value="2">2</option>
+                  <option value="3">3</option>
+                </select>
+              </div>
+              <div class="min-w-0">
+                <label class="label" for="type-ac">AC</label>
+                <select class="field" id="type-ac">
+                  <option value="">Any</option>
+                  <option value="true">AC</option>
+                  <option value="false">Non-AC</option>
+                </select>
+              </div>
+              <div class="min-w-0">
+                <label class="label" for="type-floor">Floor</label>
+                <select class="field" id="type-floor"><option value="">Any</option></select>
+              </div>
+            </div>
+            <div class="rounded-lg border border-line bg-panel p-3 flex flex-col gap-1" aria-live="polite" id="type-preview"></div>
+            <button class="btn-secondary w-full" id="type-add" type="submit"><span class="material-symbols-outlined text-[18px]" aria-hidden="true">playlist_add</span>Add to my choices</button>
+          </form>
+        </div>
+
+        <div class="flex flex-col gap-3" id="submit-error" aria-live="polite"></div>
+
+        <div class="flex flex-col gap-2">
+          <button class="btn-primary w-full h-10" disabled id="lock-submit-btn" type="button">Send request</button>
+          <button class="btn-ghost w-full" id="secondary-btn" type="button">Clear list</button>
+        </div>
+      </div>
+
+      <div class="card p-4 flex flex-col gap-1.5" id="yield-box">
+        <div class="flex items-center justify-between gap-2">
+          <span class="text-sm font-semibold text-ink">Last matching round</span>
+          <span class="chip-neutral" id="yield-pill">—</span>
+        </div>
+        <p class="text-xs muted" id="yield-text">Loading…</p>
+      </div>
+
+      <div class="card p-4 flex items-start gap-3">
+        <span class="material-symbols-outlined text-[18px] text-info mt-0.5" aria-hidden="true">info</span>
+        <div class="flex flex-col gap-0.5 min-w-0">
+          <span class="text-sm font-semibold text-ink">How a swap is approved</span>
+          <p class="text-xs muted">Everyone in a swap chain must confirm, then hostel staff approve before anyone moves. You only see hostels you are allowed to live in.</p>
+        </div>
+      </div>
+    </aside>
+  </div>
 </main>
-<footer class="w-full bg-white border-t border-border-hairline py-8 mt-4">
-<div class="max-w-7xl mx-auto px-4 sm:px-6 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-text-muted">
-<div class="flex items-center gap-2">
-<span class="font-bold text-text-main">CampusSwap</span>
-<span>•</span>
-<span>UCS503P prototype · demo data</span>
+
+<!-- Phone bar: how many choices, and a way to open them -->
+<div class="lg:hidden fixed bottom-0 inset-x-0 z-30 border-t border-line bg-panel" id="phone-bar">
+  <div class="max-w-6xl mx-auto px-4 h-16 flex items-center justify-between gap-3">
+    <span class="text-sm font-semibold text-ink truncate" id="phone-bar-text" aria-live="polite">0 of 5 chosen</span>
+    <button aria-controls="queue-panel" aria-expanded="false" class="btn-primary shrink-0" id="phone-bar-btn" type="button">Review</button>
+  </div>
 </div>
-<div class="flex items-center gap-4 text-[11px] font-bold text-text-muted">
-<a class="hover:text-airbnb-coral transition-colors" href="/dashboard.html">My dashboard</a>
-<a class="hover:text-airbnb-coral transition-colors" href="/docs" target="_blank">API reference</a>
-</div>
-</div>
+
+<footer class="border-t border-line hidden lg:block">
+  <div class="max-w-6xl mx-auto px-4 sm:px-6 py-6 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-xs faint">
+    <span>CampusSwap · UCS503P prototype · demo data</span>
+    <div class="flex items-center gap-4">
+      <a class="hover:text-ink" href="/dashboard.html">My swap</a>
+      <a class="hover:text-ink" href="/docs" target="_blank" rel="noopener">API reference</a>
+    </div>
+  </div>
 </footer>
 <script src="/js/rooms.js" type="module"></script>
 </body></html>

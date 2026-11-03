@@ -1,32 +1,118 @@
-// Explore rooms (reference 4): filter rooms, build a ranked list of up to 5, submit.
+// Find rooms: filter rooms, build a ranked list of up to 5 choices (exact rooms
+// or room types), and send it as a swap request.
 import { api, requireUser } from "./api.js";
 import { fillHeader } from "./nav.js";
-import { $, $$, formatDateTime, html, raw, setBusy, timeAgo, toast, toastError } from "./ui.js";
+import { $, $$, formatDateTime, html, plural, raw, setBusy, toast } from "./ui.js";
 
 const MAX = 5;
 const PAGE_SIZE = { grid: 6, compact: 12 };
-const HOSTEL_STYLE = [
-  { badge: "bg-badge-ganga text-amber-900 border-amber-200", icon: "text-amber-700", box: "text-cyan-300", border: "border-cyan-400/60", chip: "bg-cyan-950/90 text-cyan-300 border-cyan-500/30", dots: "bg-[radial-gradient(#38bdf8_1px,transparent_1px)]", bed: "border-cyan-300/80 bg-cyan-500/10 text-cyan-200", size: "bg-airbnb-coral/90" },
-  { badge: "bg-badge-tagore text-blue-900 border-blue-200", icon: "text-blue-700", box: "text-sky-300", border: "border-sky-400/60", chip: "bg-blue-950 text-sky-300 border-sky-500/30", dots: "bg-[radial-gradient(#38bdf8_1px,transparent_1px)]", bed: "border-sky-300/80 bg-sky-500/10 text-sky-200", size: "bg-blue-600" },
-  { badge: "bg-badge-west text-purple-900 border-purple-200", icon: "text-purple-700", box: "text-purple-300", border: "border-purple-400/60", chip: "bg-purple-950 text-purple-300 border-purple-500/30", dots: "bg-[radial-gradient(#a855f7_1px,transparent_1px)]", bed: "border-purple-300/80 bg-purple-500/10 text-purple-200", size: "bg-purple-600" },
-  { badge: "bg-badge-shakti text-emerald-900 border-emerald-200", icon: "text-emerald-700", box: "text-emerald-300", border: "border-emerald-400/60", chip: "bg-emerald-950 text-emerald-300 border-emerald-500/30", dots: "bg-[radial-gradient(#34d399_1px,transparent_1px)]", bed: "border-emerald-300/80 bg-emerald-500/10 text-emerald-200", size: "bg-emerald-600" },
-];
-const TOGGLE_ON = "pill-btn filter-toggle-btn h-9 px-3.5 rounded-full border-2 border-airbnb-coral bg-airbnb-coral-subtle text-airbnb-coral font-bold text-xs flex items-center gap-1.5 shadow-xs hover:bg-rose-100/60 shrink-0";
-const TOGGLE_OFF = "pill-btn filter-toggle-btn h-9 px-3.5 rounded-full border border-gray-200 bg-white hover:border-gray-400 hover:bg-gray-50 text-text-muted hover:text-text-main font-medium text-xs flex items-center gap-1.5 shrink-0";
-const VIEW_ON = "relative z-10 px-2.5 py-1 rounded-full bg-white shadow-xs text-text-main text-xs font-bold flex items-center gap-1 transition-all duration-200";
-const VIEW_OFF = "relative z-10 px-2.5 py-1 rounded-full text-text-muted hover:text-text-main text-xs font-medium flex items-center gap-1 transition-all duration-200";
+const NO_FILTERS = { hostel: "", floor: "", seater: "", ac: false, attached: false, open: false, search: "" };
 
+const TOGGLE_ON = "btn-secondary btn-sm border-brass/50 bg-brass/10 text-brass hover:border-brass";
+const TOGGLE_OFF = "btn-secondary btn-sm";
+const VIEW_ON = "h-8 px-2.5 rounded-md text-xs font-semibold flex items-center gap-1 bg-raised text-ink";
+const VIEW_OFF = "h-8 px-2.5 rounded-md text-xs font-semibold flex items-center gap-1 text-ink-2 hover:text-ink";
+const PANEL_OPEN = ["flex", "fixed", "inset-0", "z-50", "overflow-y-auto", "bg-canvas", "p-4", "pb-8"];
+
+// state.queue holds entries: { kind: "room", room } or { kind: "type", type: { hostel, seater, ac, floor } }
 const state = {
-  rooms: [], hostels: [], lastRun: null, request: null,
-  queue: [], filters: { hostel: "", floor: "", seater: "", ac: false, attached: false, open: false, search: "" },
+  rooms: [], hostels: [], lastRun: null, request: null, loaded: false,
+  queue: [], filters: { ...NO_FILTERS },
   sort: "open", view: "grid", page: 1,
 };
 let me;
+const wide = window.matchMedia("(min-width: 1024px)");
 const draftKey = () => `campusswap-draft-${me.id}`;
 const locked = () => state.request && ["open", "matched"].includes(state.request.status);
 const bedsLabel = (n) => (n === 1 ? "Single" : n === 2 ? "Double sharing" : "Triple sharing");
-const styleFor = (code) => HOSTEL_STYLE[Math.max(0, state.hostels.findIndex((h) => h.code === code)) % HOSTEL_STYLE.length];
+const floorLabel = (f) => (f === 0 ? "Ground floor" : `Floor ${f}`);
 const shortName = (room) => `${room.hostel.name} · ${room.number}`;
+const hostelName = (code) => state.hostels.find((h) => h.code === code)?.name || `Hostel ${code}`;
+const toastWhere = () => (wide.matches ? "bottom" : "top");
+
+// ---------------------------------------------------------------- room types
+// Same wording as Preference.label on the server, so this page and My swap agree.
+function typeLabel(t) {
+  const seater = t.seater ? `${t.seater}-seater ` : "";
+  const ac = t.ac === true ? "AC " : t.ac === false ? "non-AC " : "";
+  const floor = t.floor !== null && t.floor !== undefined ? `, floor ${t.floor}` : "";
+  return `Any ${seater}${ac}room in ${hostelName(t.hostel)}${floor}`;
+}
+const typeKey = (t) => [t.hostel, t.seater ?? "", t.ac ?? "", t.floor ?? ""].join("|");
+const fitsType = (t, r) => r.hostel.code === t.hostel
+  && (t.seater === null || r.seater === t.seater)
+  && (t.ac === null || r.ac === t.ac)
+  && (t.floor === null || r.floor === t.floor);
+// Rooms (other than your own) that a type stands for. The server refuses a type with none.
+function typeMatches(t) {
+  const fits = state.rooms.filter((r) => fitsType(t, r));
+  return { count: fits.filter((r) => !r.is_own).length, includesOwn: fits.some((r) => r.is_own) };
+}
+function matchText({ count, includesOwn }) {
+  if (!count) return "Matches no rooms right now";
+  return `Matches ${plural(count, "room")}${includesOwn ? " besides yours" : ""}`;
+}
+const floorsOf = (code) => [...new Set(state.rooms.filter((r) => !code || r.hostel.code === code).map((r) => r.floor))].sort((a, b) => a - b);
+
+function readTypeForm() {
+  const seater = $("#type-seater").value;
+  const ac = $("#type-ac").value;
+  const floor = $("#type-floor").value;
+  return {
+    hostel: $("#type-hostel").value,
+    seater: seater ? Number(seater) : null,
+    ac: ac === "" ? null : ac === "true",
+    floor: floor === "" ? null : Number(floor),
+  };
+}
+
+function fillTypeFloors() {
+  const select = $("#type-floor");
+  const before = select.value;
+  const floors = floorsOf($("#type-hostel").value);
+  select.innerHTML = `<option value="">Any</option>`
+    + floors.map((f) => html`<option value="${f}">${f === 0 ? "Ground" : f}</option>`).join("");
+  select.value = floors.includes(Number(before)) && before !== "" ? before : "";
+}
+
+// Why the current type can't be added, or "" when it can.
+function typeProblem(t) {
+  const dupe = state.queue.findIndex((e) => e.kind === "type" && typeKey(e.type) === typeKey(t));
+  if (dupe >= 0) return `This room type is already choice ${dupe + 1} in your list.`;
+  if (state.queue.length >= MAX) return `You already have ${MAX} choices. Remove one to add this room type.`;
+  if (!typeMatches(t).count) return "No room other than yours fits this type, so it can't be sent. Change the beds, AC or floor.";
+  return "";
+}
+
+function renderTypePreview() {
+  if (!state.hostels.length) return;
+  const t = readTypeForm();
+  const m = typeMatches(t);
+  const problem = typeProblem(t);
+  $("#type-preview").innerHTML = html`
+    <span class="text-sm font-semibold text-ink break-words">${typeLabel(t)}</span>
+    <span class="text-xs ${raw(m.count ? "muted" : "text-bad")} flex items-center gap-1">
+      <span class="material-symbols-outlined text-[16px]" aria-hidden="true">${m.count ? "meeting_room" : "warning"}</span>${matchText(m)}
+    </span>
+    ${problem ? raw(html`<span class="text-xs ${raw(m.count ? "text-brass" : "muted")}">${problem}</span>`) : ""}`;
+  $("#type-add").disabled = Boolean(problem);
+}
+
+function setTypeFormOpen(open) {
+  $("#type-form").hidden = !open;
+  $("#type-toggle").setAttribute("aria-expanded", String(open));
+  $("#type-toggle-icon").textContent = open ? "expand_less" : "expand_more";
+  if (open) renderTypePreview();
+}
+
+function addType() {
+  const t = readTypeForm();
+  if (typeProblem(t)) return renderTypePreview();
+  state.queue.push({ kind: "type", type: t });
+  saveDraft();
+  update();
+  toast(`Added a room type as choice ${state.queue.length}`, typeLabel(t), { icon: "playlist_add", position: toastWhere() });
+}
 
 // ---------------------------------------------------------------- filtering
 function filtered() {
@@ -34,7 +120,7 @@ function filtered() {
   const q = f.search.trim().toLowerCase();
   const list = state.rooms.filter((r) =>
     (!f.hostel || r.hostel.code === f.hostel)
-    && (!f.floor || String(r.floor) === f.floor)
+    && (f.floor === "" || String(r.floor) === f.floor)
     && (!f.seater || String(r.seater) === f.seater)
     && (!f.ac || r.ac)
     && (!f.attached || r.washroom === "attached")
@@ -49,32 +135,36 @@ function filtered() {
   return list.sort(sorters[state.sort]);
 }
 
-function activeChips() {
+function activeChipList() {
   const f = state.filters;
   const chips = [];
-  if (f.hostel) chips.push(["hostel", state.hostels.find((h) => h.code === f.hostel)?.name]);
-  if (f.floor) chips.push(["floor", `Floor ${f.floor}`]);
+  if (f.hostel) chips.push(["hostel", hostelName(f.hostel)]);
+  if (f.floor !== "") chips.push(["floor", floorLabel(Number(f.floor))]);
   if (f.seater) chips.push(["seater", bedsLabel(Number(f.seater))]);
   if (f.ac) chips.push(["ac", "AC only"]);
-  if (f.attached) chips.push(["attached", "Attached washroom only"]);
+  if (f.attached) chips.push(["attached", "Attached washroom"]);
   if (f.open) chips.push(["open", "Someone wants to swap"]);
   if (f.search.trim()) chips.push(["search", `“${f.search.trim()}”`]);
+  return chips;
+}
+
+function activeChips() {
+  const chips = activeChipList();
   const strip = $("#active-filter-strip");
+  const panelChips = chips.filter(([key]) => key !== "search").length;
+  $("#filters-toggle-label").textContent = panelChips ? `Filters (${panelChips})` : "Filters";
   if (!chips.length) {
-    strip.innerHTML = `<span class="text-[11px] font-bold tracking-wider text-text-light uppercase">No filters · showing every room you can live in</span>`;
+    strip.innerHTML = `<span class="faint">No filters. Showing every room in the hostels you can live in.</span>`;
     return;
   }
-  strip.innerHTML = `<span class="text-[11px] font-bold tracking-wider text-text-light uppercase">Active filters:</span>`
-    + chips.map(([key, label]) => html`<span class="filter-chip-fade inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-airbnb-coral-subtle text-airbnb-coral font-semibold text-[11px] border border-airbnb-coral/20 hover:border-airbnb-coral/50 group">${label}<button aria-label="Remove filter ${label}" class="hover:text-airbnb-coral-dark flex items-center p-0.5" data-clear="${key}" type="button"><span class="material-symbols-outlined text-[12px] group-hover:rotate-90 transition-transform duration-200">close</span></button></span>`).join("")
-    + `<button class="text-xs font-bold text-text-muted hover:text-airbnb-coral underline ml-2 transition-colors" data-clear="all" type="button">Clear all</button>`;
+  strip.innerHTML = chips.map(([key, label]) => html`<span class="chip-neutral max-w-full pr-1"><span class="truncate">${label}</span><button aria-label="Remove filter: ${label}" class="inline-flex items-center justify-center w-5 h-5 rounded hover:bg-line hover:text-ink" data-clear="${key}" type="button"><span class="material-symbols-outlined text-[14px]" aria-hidden="true">close</span></button></span>`).join("")
+    + `<button class="btn-ghost btn-sm h-6 px-2" data-clear="all" type="button">Clear all</button>`;
 }
 
 function clearFilter(key) {
-  if (key === "all") {
-    state.filters = { hostel: "", floor: "", seater: "", ac: false, attached: false, open: false, search: "" };
-  } else {
-    state.filters[key] = typeof state.filters[key] === "boolean" ? false : "";
-  }
+  if (key === "all") state.filters = { ...NO_FILTERS };
+  else state.filters[key] = typeof state.filters[key] === "boolean" ? false : "";
+  state.page = 1;
   syncControls();
   update();
 }
@@ -94,117 +184,80 @@ function syncControls() {
 
 // ---------------------------------------------------------------- room cards
 function actionButton(room) {
-  const rank = state.queue.findIndex((r) => r.id === room.id);
-  const base = "btn-rank-cta h-8 px-4 rounded-full font-bold text-xs flex items-center gap-1.5 shadow-sm group/btn whitespace-nowrap";
-  if (room.is_own) return `<button class="${base} bg-gray-100 text-text-muted cursor-not-allowed shadow-none" disabled type="button"><span class="material-symbols-outlined text-[16px]">home</span><span>Your room</span></button>`;
-  if (locked()) return `<button class="${base} bg-gray-100 text-text-muted cursor-not-allowed shadow-none" disabled type="button"><span class="material-symbols-outlined text-[16px]">lock</span><span>Request locked</span></button>`;
-  if (rank >= 0) return html`<button class="${raw(base)} bg-emerald-50 text-airbnb-emerald border border-emerald-300" data-unrank="${room.id}" title="Remove from your list" type="button"><span class="material-symbols-outlined text-[16px]">bookmark_added</span><span>Ranked #${rank + 1}</span></button>`;
-  const full = state.queue.length >= MAX;
-  return html`<button class="${raw(base)} ${raw(full ? "bg-gray-100 text-text-muted cursor-not-allowed shadow-none" : "bg-airbnb-coral hover:bg-airbnb-coral-dark text-white")}" data-rank="${room.id}" ${raw(full ? "disabled title=\"You already have 5 choices\"" : "")} type="button"><span class="material-symbols-outlined text-[16px] group-hover/btn:rotate-12 transition-transform duration-200">bookmark_add</span><span>Rank in Preferences</span></button>`;
+  const rank = state.queue.findIndex((e) => e.kind === "room" && e.room.id === room.id);
+  if (room.is_own) return `<button class="btn-secondary btn-sm" disabled type="button"><span class="material-symbols-outlined text-[16px]" aria-hidden="true">home</span>Your room</button>`;
+  if (locked()) return `<button class="btn-secondary btn-sm" disabled type="button"><span class="material-symbols-outlined text-[16px]" aria-hidden="true">lock</span>Request already sent</button>`;
+  if (rank >= 0) return html`<button aria-label="Remove ${shortName(room)} from your choices (choice ${rank + 1})" class="btn-secondary btn-sm border-brass/40 text-brass" data-unrank="${room.id}" type="button"><span class="material-symbols-outlined text-[16px]" aria-hidden="true">check</span>Choice ${rank + 1} · Remove</button>`;
+  if (state.queue.length >= MAX) return html`<button class="btn-secondary btn-sm" disabled title="You already have ${MAX} choices" type="button">${MAX} of ${MAX} chosen</button>`;
+  return html`<button aria-label="Add ${shortName(room)} to your choices" class="btn-secondary btn-sm" data-rank="${room.id}" type="button"><span class="material-symbols-outlined text-[16px] text-brass" aria-hidden="true">add</span>Add to choices</button>`;
 }
 
-function openPill(room) {
-  if (room.is_own) return `<div class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-slate-100 text-slate-600 font-extrabold text-xs border border-slate-200"><span class="material-symbols-outlined text-[14px]">home</span><span>Your room</span></div>`;
-  if (room.open_to_swap > 0) return html`<div class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-emerald-50 text-airbnb-emerald font-extrabold text-xs border border-emerald-300 ring-2 ring-emerald-400/30 animate-pulse-gentle whitespace-nowrap"><span class="material-symbols-outlined text-[14px]">swap_horiz</span><span>${room.open_to_swap} open to swap</span></div>`;
-  return `<div class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-gray-50 text-text-muted font-bold text-xs border border-gray-200 whitespace-nowrap"><span class="material-symbols-outlined text-[14px]">hourglass_empty</span><span>No one swapping yet</span></div>`;
+function statusChip(room) {
+  if (room.is_own) return `<span class="chip-neutral"><span class="material-symbols-outlined text-[14px]" aria-hidden="true">home</span>Your room</span>`;
+  if (room.open_to_swap > 0) return html`<span class="chip-info"><span class="material-symbols-outlined text-[14px]" aria-hidden="true">swap_horiz</span>${room.open_to_swap} open to swap</span>`;
+  return "";
 }
 
-function schematic(room) {
-  const s = styleFor(room.hostel.code);
-  const beds = "ABC".slice(0, room.seater).split("").map((label, i) => {
-    const open = i < room.open_to_swap;
-    return html`<div class="${raw(open ? `vacant-bed-glow border-dashed ${s.bed}` : "border-slate-600 bg-slate-800/40 text-slate-400")} ${raw(room.seater === 1 ? "w-24" : room.seater === 2 ? "w-14" : "w-10")} h-full border rounded flex flex-col items-center justify-center text-[9px]"><span class="material-symbols-outlined text-[15px] ${raw(open ? "text-emerald-300" : "")}">${room.seater === 1 ? "single_bed" : "bed"}</span><span>Bed ${label}</span><span class="text-[7px] font-extrabold tracking-wider ${raw(open ? "text-emerald-400" : "text-slate-500")}">${open ? "SWAP" : "TAKEN"}</span></div>`;
-  }).join("");
-  const bath = room.washroom === "attached"
-    ? `<div class="flex-1 h-full border ${s.border} rounded bg-blue-500/10 flex flex-col items-center justify-center text-[9px] ${s.box}"><span class="material-symbols-outlined text-[14px]">shower</span><span>Attached</span></div>`
-    : `<div class="flex-1 h-full border border-dashed border-slate-600 rounded bg-slate-800/30 flex flex-col items-center justify-center text-[9px] text-slate-400"><span class="material-symbols-outlined text-[14px]">desk</span><span>Study desks</span></div>`;
-  const balcony = room.tags.includes("Balcony") ? `<div class="absolute -top-2.5 right-4 bg-amber-400 text-slate-950 text-[8px] font-extrabold px-1.5 rounded uppercase shadow-xs">☀ Balcony</div>` : "";
+function gridCard(room) {
+  const swapLine = room.is_own ? "You live here"
+    : room.open_to_swap ? `${room.open_to_swap} of ${room.seater} ${room.seater > 1 ? "people" : "person"} here want${room.open_to_swap === 1 ? "s" : ""} to swap`
+      : "No one here has asked to swap yet";
   return html`
-  <div class="schematic-box w-full md:w-60 h-52 flex-shrink-0 rounded-xl bg-slate-900 ${raw(s.box)} p-3 relative flex flex-col justify-between border border-slate-800 shadow-inner overflow-hidden font-mono" aria-hidden="true">
-    <div class="absolute inset-0 opacity-20 ${raw(s.dots)} [background-size:12px_12px] pointer-events-none"></div>
-    <div class="relative z-10 flex items-center justify-between text-[10px]">
-      <span class="${raw(s.chip)} border px-2 py-0.5 rounded font-bold uppercase tracking-wider">ROOM ${room.hostel.code}-${room.number}</span>
-      <span class="${raw(s.size)} text-white font-bold px-1.5 py-0.5 rounded text-[10px] shadow-xs">${room.seater} BED${room.seater > 1 ? "S" : ""}</span>
-    </div>
-    <div class="relative z-10 my-auto py-1 flex flex-col items-center">
-      <div class="w-full h-24 border-2 ${raw(s.border)} rounded-sm p-1.5 flex gap-1 relative bg-slate-950/60">${raw(balcony)}${raw(beds)}${raw(bath)}</div>
-    </div>
-    <div class="relative z-10 flex items-center justify-between text-[10px] pt-1 border-t border-slate-800">
-      <span class="flex items-center gap-1 font-medium"><span class="material-symbols-outlined text-[13px] text-amber-400">layers</span> Floor ${room.floor} • Block ${room.block}</span>
-      ${raw(room.ac ? `<span class="text-emerald-400 font-bold flex items-center gap-1"><span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping"></span>AC</span>` : `<span class="text-slate-400 font-bold">Non-AC</span>`)}
-    </div>
-  </div>`;
-}
-
-function spec(icon, tone, label, value) {
-  return html`<div class="flex items-center gap-1.5 hover:bg-white p-1 rounded-lg transition-colors min-w-0"><div class="w-6 h-6 shrink-0 rounded-md bg-white border border-gray-200 flex items-center justify-center ${raw(tone)} shadow-xs"><span class="material-symbols-outlined text-[15px]">${icon}</span></div><div class="min-w-0"><div class="text-[10px] text-text-light leading-none">${label}</div><div class="font-bold text-[11px] truncate">${value}</div></div></div>`;
-}
-
-function gridCard(room, i) {
-  const s = styleFor(room.hostel.code);
-  const ribbon = room.open_to_swap > 0 && !room.is_own
-    ? `<div class="absolute top-0 left-0 bg-airbnb-coral text-white font-bold text-[10px] tracking-wider uppercase px-3 py-1 rounded-br-xl shadow-xs flex items-center gap-1 z-20"><span class="material-symbols-outlined text-[12px]">auto_awesome</span><span>Swap possible</span></div>` : "";
-  return html`
-  <article class="stagger-in hostel-card-lift bg-white rounded-2xl border ${raw(room.is_own ? "border-slate-300 bg-slate-50/50" : "border-gray-200 hover:border-airbnb-coral/40")} shadow-xs p-5 flex flex-col md:flex-row gap-5 relative overflow-hidden group" style="animation-delay:${Math.min(i, 5) * 60}ms">
-    ${raw(ribbon)}
-    ${raw(schematic(room))}
-    <div class="flex flex-col justify-between flex-1 gap-2.5 min-w-0">
-      <div>
-        <div class="flex items-start justify-between gap-2 flex-wrap">
-          <div class="min-w-0">
-            <div class="flex items-center gap-2 flex-wrap mb-1">
-              <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md ${raw(s.badge)} border text-xs font-bold"><span class="material-symbols-outlined text-[13px] ${raw(s.icon)}">corporate_fare</span>${room.hostel.name}</span>
-              <span class="text-xs text-text-muted font-medium">• Block ${room.block} • Floor ${room.floor}</span>
-              <span class="px-2 py-0.5 rounded bg-emerald-50 text-emerald-700 font-bold text-[10px] border border-emerald-200">${bedsLabel(room.seater)}</span>
-            </div>
-            <h2 class="text-lg font-extrabold text-text-main tracking-tight group-hover:text-airbnb-coral transition-colors">Room ${room.number}</h2>
-          </div>
-          <div class="flex flex-col items-end flex-shrink-0">${raw(openPill(room))}</div>
-        </div>
-        <div class="grid grid-cols-1 sm:grid-cols-3 gap-2 py-2.5 my-2 rounded-xl bg-gray-50 border border-gray-100 px-3 text-xs text-text-main font-medium">
-          ${raw(spec(room.washroom === "attached" ? "bathroom" : "wc", "text-airbnb-coral", "Washroom", room.washroom === "attached" ? "Attached" : "Common"))}
-          ${raw(spec(room.ac ? "ac_unit" : "mode_fan", "text-blue-500", "Cooling", room.ac ? "AC installed" : "Fan only"))}
-          ${raw(spec("bed", "text-emerald-600", "Beds", bedsLabel(room.seater)))}
-        </div>
-        <div class="flex flex-wrap items-center gap-1.5">
-          ${room.tags.map((t) => raw(html`<span class="px-2.5 py-0.5 rounded-full bg-gray-100 text-text-muted text-[11px] font-semibold flex items-center gap-1"><span class="material-symbols-outlined text-[12px] text-indigo-500">sell</span>${t}</span>`))}
-        </div>
+  <article class="card p-4 sm:p-5 flex flex-col gap-3 ${raw(room.is_own ? "border-line-strong" : "")}">
+    <div class="flex items-start justify-between gap-3">
+      <div class="min-w-0">
+        <p class="text-xs muted break-words">${room.hostel.name} · Block ${room.block} · ${floorLabel(room.floor)}</p>
+        <h3 class="section-title mt-0.5 break-words">Room <span class="font-mono">${room.number}</span></h3>
       </div>
-      <div class="flex items-center justify-between pt-2 border-t border-gray-100 gap-3 flex-wrap">
-        <span class="text-xs text-text-muted">${room.is_own ? "You live here" : `${room.open_to_swap} of ${room.seater} occupant${room.seater > 1 ? "s" : ""} looking to swap`}</span>
-        ${raw(actionButton(room))}
-      </div>
+      <div class="shrink-0">${raw(statusChip(room))}</div>
+    </div>
+    <div class="flex flex-wrap gap-1.5">
+      <span class="chip-neutral"><span class="material-symbols-outlined text-[14px]" aria-hidden="true">bed</span>${bedsLabel(room.seater)}</span>
+      <span class="chip-neutral"><span class="material-symbols-outlined text-[14px]" aria-hidden="true">${room.ac ? "ac_unit" : "mode_fan"}</span>${room.ac ? "AC" : "Non-AC"}</span>
+      <span class="chip-neutral"><span class="material-symbols-outlined text-[14px]" aria-hidden="true">shower</span>${room.washroom === "attached" ? "Attached washroom" : "Common washroom"}</span>
+    </div>
+    ${room.tags.length ? raw(html`<p class="text-xs faint break-words">${room.tags.join(" · ")}</p>`) : ""}
+    <div class="flex items-center justify-between gap-3 flex-wrap pt-3 border-t border-line">
+      <span class="text-xs muted">${swapLine}</span>
+      ${raw(actionButton(room))}
     </div>
   </article>`;
 }
 
 function compactRow(room) {
   return html`
-  <div class="bg-white rounded-xl border ${raw(room.is_own ? "border-slate-300" : "border-gray-200")} shadow-xs px-4 py-3 flex items-center gap-4 flex-wrap">
-    <span class="font-mono text-xs font-extrabold text-text-main w-20">${room.hostel.code}-${room.number}</span>
-    <span class="text-xs text-text-muted flex-1 min-w-[140px]">${room.hostel.name} • Block ${room.block} • Floor ${room.floor}</span>
-    <span class="text-[11px] font-semibold text-text-muted w-28">${bedsLabel(room.seater)}</span>
-    <span class="text-[11px] font-semibold ${raw(room.ac ? "text-blue-600" : "text-text-light")} w-14">${room.ac ? "AC" : "Non-AC"}</span>
-    <span class="text-[11px] font-semibold text-text-muted w-20">${room.washroom === "attached" ? "Attached" : "Common"}</span>
-    <span class="text-[11px] font-bold ${raw(room.open_to_swap ? "text-airbnb-emerald" : "text-text-light")} w-20">${room.open_to_swap ? `${room.open_to_swap} open` : "—"}</span>
-    ${raw(actionButton(room))}
+  <div class="px-4 py-3 flex flex-col sm:flex-row sm:items-center gap-x-4 gap-y-2 ${raw(room.is_own ? "bg-raised/40" : "")}">
+    <div class="flex-1 min-w-0">
+      <span class="font-mono text-[13px] text-ink">${room.hostel.code}-${room.number}</span>
+      <span class="block text-xs muted break-words">${room.hostel.name} · Block ${room.block} · ${floorLabel(room.floor)}</span>
+      <span class="block text-xs faint break-words">${bedsLabel(room.seater)} · ${room.ac ? "AC" : "Non-AC"} · ${room.washroom === "attached" ? "Attached washroom" : "Common washroom"}</span>
+    </div>
+    <div class="flex items-center justify-between sm:justify-end gap-3 shrink-0">
+      <span class="text-xs sm:w-24 ${raw(room.open_to_swap && !room.is_own ? "text-info" : "faint")}">${room.is_own ? "You live here" : room.open_to_swap ? `${room.open_to_swap} open to swap` : "No one swapping"}</span>
+      ${raw(actionButton(room))}
+    </div>
   </div>`;
 }
 
 function renderList() {
+  const target = $("#room-list");
+  target.setAttribute("aria-busy", "false");
   const list = filtered();
   const size = PAGE_SIZE[state.view];
   const pages = Math.max(1, Math.ceil(list.length / size));
   state.page = Math.min(state.page, pages);
   const slice = list.slice((state.page - 1) * size, state.page * size);
   const withOpen = state.rooms.filter((r) => r.open_to_swap > 0 && !r.is_own).length;
-  $("#count-label").textContent = `Showing ${list.length} of ${state.rooms.length} rooms`;
-  $("#feed-title").textContent = `${state.rooms.length} rooms in ${state.hostels.map((h) => h.name).join(" & ")} · ${withOpen} with someone open to swap`;
-  const target = $("#room-list");
-  if (!list.length) {
-    target.innerHTML = `<div class="bg-white rounded-2xl border border-dashed border-gray-300 p-10 text-center"><span class="material-symbols-outlined text-[36px] text-text-light">search_off</span><h3 class="font-extrabold text-text-main mt-2">No rooms match these filters</h3><p class="text-xs text-text-muted mt-1">Try removing a filter.</p><button class="mt-4 px-4 py-2 rounded-full bg-airbnb-coral hover:bg-airbnb-coral-dark text-white text-xs font-bold" data-clear="all" type="button">Clear all filters</button></div>`;
+  $("#count-label").textContent = `${list.length} of ${plural(state.rooms.length, "room")} · ${withOpen} with someone open to swap`;
+
+  if (!state.rooms.length) {
+    target.innerHTML = `<div class="card card-pad flex flex-col items-start gap-2"><h3 class="section-title">No rooms to show</h3><p class="muted">There are no rooms yet in the hostels you can live in. Check back after the hostel office adds them.</p></div>`;
+  } else if (!list.length) {
+    target.innerHTML = `<div class="card card-pad flex flex-col items-start gap-2"><span class="material-symbols-outlined text-[24px] faint" aria-hidden="true">search_off</span><h3 class="section-title">No rooms match these filters</h3><p class="muted">Remove a filter or two to see more rooms.</p><button class="btn-secondary mt-2" data-clear="all" type="button">Clear filters</button></div>`;
+  } else if (state.view === "grid") {
+    target.innerHTML = slice.map(gridCard).join("");
   } else {
-    target.innerHTML = slice.map((room, i) => (state.view === "grid" ? gridCard(room, i) : compactRow(room))).join("");
+    target.innerHTML = `<div class="card overflow-hidden divide-y divide-line">${slice.map(compactRow).join("")}</div>`;
   }
   renderPagination(list.length, pages);
 }
@@ -213,74 +266,119 @@ function renderPagination(total, pages) {
   const size = PAGE_SIZE[state.view];
   const from = total ? (state.page - 1) * size + 1 : 0;
   const to = Math.min(total, state.page * size);
-  const btn = (label, page, active = false, disabled = false) => html`<button class="${raw(active ? "w-8 h-8 rounded-full bg-airbnb-coral text-white font-bold shadow-xs" : label.length > 2 ? "px-3 py-1.5 rounded-full bg-white border border-gray-200 hover:border-gray-300 text-text-main shadow-xs disabled:opacity-40" : "w-8 h-8 rounded-full bg-white border border-gray-200 hover:bg-gray-100 text-text-muted font-bold")} transition-all active:scale-95" data-page="${page}" ${raw(disabled ? "disabled" : "")} type="button">${label}</button>`;
-  const numbers = Array.from({ length: pages }, (_, i) => btn(String(i + 1), i + 1, i + 1 === state.page)).join("");
-  $("#pagination").innerHTML = `<span>Showing ${from}–${to} of ${total} rooms</span>`
-    + (pages > 1 ? `<div class="flex items-center gap-1.5">${btn("Prev", state.page - 1, false, state.page === 1)}${numbers}${btn("Next", state.page + 1, false, state.page === pages)}</div>` : "");
+  if (!total) { $("#pagination").innerHTML = ""; return; }
+  const num = (n) => html`<button ${raw(n === state.page ? "aria-current=\"page\"" : "")} aria-label="Page ${n}" class="btn-ghost btn-sm w-8 px-0 ${raw(n === state.page ? "bg-raised text-ink" : "")}" data-page="${n}" type="button">${n}</button>`;
+  $("#pagination").innerHTML = html`<span>Showing ${from}–${to} of ${total}</span>`
+    + (pages > 1 ? html`<nav aria-label="Pages of rooms" class="flex items-center gap-1 flex-wrap">
+        <button class="btn-ghost btn-sm" data-page="${state.page - 1}" ${raw(state.page === 1 ? "disabled" : "")} type="button" aria-label="Previous page"><span class="material-symbols-outlined text-[18px]" aria-hidden="true">chevron_left</span><span class="hidden sm:inline">Previous</span></button>
+        ${raw(Array.from({ length: pages }, (_, i) => num(i + 1)).join(""))}
+        <button class="btn-ghost btn-sm" data-page="${state.page + 1}" ${raw(state.page === pages ? "disabled" : "")} type="button" aria-label="Next page"><span class="hidden sm:inline">Next</span><span class="material-symbols-outlined text-[18px]" aria-hidden="true">chevron_right</span></button>
+      </nav>` : "");
 }
 
-// ---------------------------------------------------------------- ranked queue
-function queueItem(room, i, isLocked) {
-  const badge = i === 0 ? "bg-airbnb-coral" : i === 1 ? "bg-slate-800" : "bg-slate-600";
+// ---------------------------------------------------------------- ranked list
+// One entry as { title, titleHtml, sub, warn } for display.
+function describe(entry) {
+  if (entry.kind === "room") {
+    const r = entry.room;
+    return {
+      name: shortName(r),
+      titleHtml: html`${r.hostel.name} · <span class="font-mono text-[13px]">${r.number}</span>`,
+      sub: `${bedsLabel(r.seater)} · ${r.ac ? "AC" : "Non-AC"} · ${floorLabel(r.floor)}`,
+      warn: false,
+    };
+  }
+  const m = typeMatches(entry.type);
+  const label = entry.label || typeLabel(entry.type);
+  return { name: label, titleHtml: html`${label}`, sub: `Room type · ${matchText(m)}`, warn: !m.count };
+}
+
+function queueItem(entry, i, count, isLocked) {
+  const d = describe(entry);
+  const rankClass = i === 0 ? "bg-brass/15 text-brass border-brass/30" : "bg-raised text-ink-2 border-line";
   const controls = isLocked ? "" : html`
-    <div class="flex items-center gap-0.5 flex-shrink-0">
-      <button aria-label="Move ${shortName(room)} up" class="p-1 rounded-full text-gray-400 hover:text-text-main hover:bg-gray-100 disabled:opacity-30" data-move="${i}" data-dir="-1" ${raw(i === 0 ? "disabled" : "")} type="button"><span class="material-symbols-outlined text-[16px] block">keyboard_arrow_up</span></button>
-      <button aria-label="Move ${shortName(room)} down" class="p-1 rounded-full text-gray-400 hover:text-text-main hover:bg-gray-100 disabled:opacity-30" data-move="${i}" data-dir="1" ${raw(i === state.queue.length - 1 ? "disabled" : "")} type="button"><span class="material-symbols-outlined text-[16px] block">keyboard_arrow_down</span></button>
-      <button aria-label="Remove ${shortName(room)}" class="remove-btn-spin text-gray-400 hover:text-red-500 p-1 rounded-full hover:bg-red-50 transition-colors" data-remove="${i}" type="button"><span class="material-symbols-outlined text-[15px] block">close</span></button>
+    <div class="flex items-center shrink-0 -mr-1">
+      <button aria-label="Move ${d.name} up" class="icon-btn w-8 h-8 disabled:opacity-30 disabled:pointer-events-none" data-move="${i}" data-dir="-1" ${raw(i === 0 ? "disabled" : "")} type="button"><span class="material-symbols-outlined text-[18px]" aria-hidden="true">arrow_upward</span></button>
+      <button aria-label="Move ${d.name} down" class="icon-btn w-8 h-8 disabled:opacity-30 disabled:pointer-events-none" data-move="${i}" data-dir="1" ${raw(i === count - 1 ? "disabled" : "")} type="button"><span class="material-symbols-outlined text-[18px]" aria-hidden="true">arrow_downward</span></button>
+      <button aria-label="Remove ${d.name}" class="icon-btn w-8 h-8 hover:text-bad" data-remove="${i}" type="button"><span class="material-symbols-outlined text-[18px]" aria-hidden="true">close</span></button>
     </div>`;
   return html`
-  <div class="draggable-item group relative flex items-center justify-between gap-2 p-3 rounded-xl bg-gray-50 hover:bg-rose-50/60 hover:border-airbnb-coral/40 border border-transparent shadow-xs ${raw(isLocked ? "" : "cursor-grab active:cursor-grabbing")}" data-index="${i}" ${raw(isLocked ? "" : "draggable=\"true\"")}>
-    <div class="flex items-center gap-2.5 min-w-0">
-      ${raw(isLocked ? "" : `<span class="material-symbols-outlined text-[16px] text-gray-400 group-hover:text-airbnb-coral transition-colors">drag_indicator</span>`)}
-      <span class="w-6 h-6 shrink-0 rounded-full ${raw(badge)} text-white font-extrabold text-[11px] flex items-center justify-center shadow-xs">${i + 1}</span>
-      <div class="flex flex-col min-w-0">
-        <span class="text-xs font-bold text-text-main truncate">${shortName(room)}</span>
-        <span class="text-[11px] text-text-muted truncate">${bedsLabel(room.seater)} • ${room.ac ? "AC" : "Non-AC"} • Floor ${room.floor}</span>
-      </div>
+  <li class="queue-item flex items-center gap-3 p-2.5 rounded-lg border border-line bg-sunken/60 ${raw(isLocked ? "" : "cursor-grab")}" data-index="${i}" ${raw(isLocked ? "" : "draggable=\"true\"")}>
+    <span class="w-7 h-7 shrink-0 rounded-md border text-xs font-bold flex items-center justify-center ${raw(rankClass)}"><span class="sr-only">Choice </span>${i + 1}</span>
+    <div class="flex flex-col min-w-0 flex-1">
+      <span class="text-sm font-semibold text-ink break-words">${raw(d.titleHtml)}</span>
+      <span class="text-xs ${raw(d.warn ? "text-bad" : "faint")} break-words">${d.sub}</span>
     </div>
     ${raw(controls)}
-  </div>`;
+  </li>`;
+}
+
+function lockedEntries() {
+  return state.request.preferences.map((p) => (p.kind === "type"
+    ? { kind: "type", type: p.type, label: p.label }
+    : { kind: "room", room: p.room }));
+}
+
+function renderLockedNotice() {
+  const box = $("#locked-notice");
+  if (!locked()) { box.hidden = true; box.innerHTML = ""; return; }
+  const matched = state.request.status === "matched";
+  box.hidden = false;
+  box.innerHTML = html`
+    <div class="${raw(matched ? "notice-warn" : "notice-info")}">
+      <span class="material-symbols-outlined text-[18px] ${raw(matched ? "text-brass" : "text-info")} shrink-0" aria-hidden="true">${matched ? "hourglass_top" : "lock"}</span>
+      <div class="flex flex-col gap-1 min-w-0">
+        <span class="font-semibold text-ink">${matched ? "You're in a proposed swap" : "You already have a request in the pool"}</span>
+        <span>${matched
+          ? "Open My swap to confirm or decline it. You can't send a new list while it is waiting for answers."
+          : raw(html`Request <span class="code">${state.request.tracking_id}</span> is waiting for the next matching round. To change your choices, withdraw it first, then send a new list.`)}</span>
+      </div>
+    </div>
+    <a class="btn-primary w-full h-10" href="/dashboard.html">${matched ? "See my swap" : "Track it on My swap"}</a>`;
 }
 
 function renderQueue() {
   const isLocked = locked();
-  const queue = isLocked ? state.request.preferences.map((p) => p.room) : state.queue;
-  const slots = queue.map((room, i) => queueItem(room, i, isLocked));
+  const entries = isLocked ? lockedEntries() : state.queue;
+  const count = entries.length;
+  const items = entries.map((e, i) => queueItem(e, i, count, isLocked));
   if (!isLocked) {
-    for (let n = queue.length + 1; n <= MAX; n++) {
-      const text = n === queue.length + 1 ? "Click “Rank in Preferences” on any room" : "Optional backup choice";
-      slots.push(html`<button class="empty-slot-pulse w-full flex items-center justify-between p-2.5 rounded-xl border-2 border-dashed border-gray-200 text-text-light group ${raw(n > queue.length + 1 ? "opacity-70" : "")}" data-empty type="button"><span class="flex items-center gap-2.5"><span class="w-6 h-6 rounded-full bg-gray-200 group-hover:bg-airbnb-coral group-hover:text-white transition-colors text-gray-500 font-bold text-[11px] flex items-center justify-center">${n}</span><span class="text-xs font-medium group-hover:text-airbnb-coral transition-colors text-left">${text}</span></span><span class="material-symbols-outlined text-[18px] text-gray-300 group-hover:text-airbnb-coral transition-all">add_circle</span></button>`);
+    for (let n = count + 1; n <= MAX; n++) {
+      const first = n === count + 1;
+      items.push(html`<li><button class="w-full flex items-center gap-3 p-2.5 rounded-lg border border-dashed border-line text-left hover:border-line-strong hover:bg-raised/40 ${raw(first ? "" : "opacity-70")}" data-empty type="button"><span class="w-7 h-7 shrink-0 rounded-md border border-dashed border-line-strong text-xs font-bold faint flex items-center justify-center">${n}</span><span class="text-xs muted">${first ? (count ? "Add a backup choice" : "Add a room from the list, or a room type below") : "Optional backup choice"}</span></button></li>`);
     }
   }
-  $("#ranked-queue-container").innerHTML = slots.join("");
-  const count = queue.length;
-  $("#queue-counter-badge").textContent = isLocked ? `Submitted · ${state.request.tracking_id}` : `${count} of ${MAX} chosen`;
-  $("#queue-progress-text").textContent = `${count} of ${MAX}`;
-  $("#queue-progress-bar").style.width = `${(count / MAX) * 100}%`;
+  $("#ranked-queue-container").innerHTML = items.join("");
+  $("#queue-counter-badge").textContent = isLocked ? `Sent · ${plural(count, "choice")}` : `${count} of ${MAX} chosen`;
+  $("#phone-bar-text").textContent = isLocked ? `Request sent · ${state.request.tracking_id}` : `${count} of ${MAX} chosen`;
+  $("#phone-bar-btn").textContent = isLocked ? "View" : "Review";
+  renderLockedNotice();
 
   const submit = $("#lock-submit-btn");
   const secondary = $("#secondary-btn");
+  $("#type-box").hidden = isLocked || !state.hostels.length;
+  submit.hidden = isLocked;
   if (isLocked) {
     const matched = state.request.status === "matched";
-    $("#queue-help").textContent = matched
-      ? "You're in a proposed swap. Open your dashboard to confirm or decline it."
-      : "Your list is locked in the matching pool. Withdraw it if you want to change your choices.";
-    submit.disabled = false;
-    submit.innerHTML = `<span class="material-symbols-outlined text-[18px]">dashboard</span><span>${matched ? "See my swap" : "Track on my dashboard"}</span>`;
-    submit.dataset.mode = "dashboard";
+    $("#queue-help").textContent = "These are the choices you sent, best first.";
     secondary.hidden = matched;
-    secondary.innerHTML = `<span class="material-symbols-outlined text-[15px] text-text-muted">undo</span><span>Withdraw request</span>`;
+    secondary.disabled = false;
+    secondary.className = "btn-danger w-full";
+    secondary.innerHTML = `<span class="material-symbols-outlined text-[18px]" aria-hidden="true">undo</span>Withdraw request`;
     secondary.dataset.mode = "withdraw";
   } else {
-    $("#queue-help").textContent = "Put your favourite first. Drag to reorder (or use the arrows). Top Trading Cycles always tries your #1 first, then falls back to the next choice that is still free.";
-    submit.disabled = count === 0;
-    submit.innerHTML = `<span class="material-symbols-outlined text-[18px]">lock</span><span>${count ? `Lock ${count} Preference${count > 1 ? "s" : ""} &amp; Submit` : "Pick at least one room"}</span>`;
-    submit.dataset.mode = "submit";
+    $("#queue-help").textContent = "Put your favourite first. Use the arrows (or drag) to change the order. The matching round tries your first choice first, then the next one that is still free.";
+    const anyEmpty = state.queue.some((e) => e.kind === "type" && !typeMatches(e.type).count);
+    submit.disabled = count === 0 || anyEmpty;
+    submit.textContent = !count ? "Add at least one choice"
+      : anyEmpty ? "Remove the room type that matches no rooms" : `Send request with ${plural(count, "choice")}`;
     secondary.hidden = false;
     secondary.disabled = count === 0;
-    secondary.innerHTML = `<span class="material-symbols-outlined text-[15px] text-text-muted">backspace</span><span>Clear list</span>`;
+    secondary.className = "btn-ghost w-full";
+    secondary.textContent = "Clear list";
     secondary.dataset.mode = "clear";
   }
+  renderTypePreview();
 }
 
 function renderYield() {
@@ -290,18 +388,33 @@ function renderYield() {
     $("#yield-text").textContent = `${run.matched} of ${run.pool_size} students got a swap in the last round (${formatDateTime(run.created_at)}).`;
   } else {
     $("#yield-pill").textContent = "No rounds yet";
-    $("#yield-text").textContent = "The warden hasn't run a matching round yet. Your request will be part of the next one.";
+    $("#yield-text").textContent = "Hostel staff haven't run a matching round yet. Your request will be part of the next one.";
   }
 }
 
+// ---------------------------------------------------------------- draft (kept in this browser)
 function saveDraft() {
-  try { localStorage.setItem(draftKey(), JSON.stringify(state.queue.map((r) => r.id))); } catch { /* storage may be blocked */ }
+  clearSubmitError();
+  const data = state.queue.map((e) => (e.kind === "room" ? { room_id: e.room.id } : { type: e.type }));
+  try { localStorage.setItem(draftKey(), JSON.stringify(data)); } catch { /* storage may be blocked */ }
 }
 function loadDraft() {
-  try {
-    const ids = JSON.parse(localStorage.getItem(draftKey()) || "[]");
-    state.queue = ids.map((id) => state.rooms.find((r) => r.id === id)).filter((r) => r && !r.is_own).slice(0, MAX);
-  } catch { state.queue = []; }
+  let saved = [];
+  try { saved = JSON.parse(localStorage.getItem(draftKey()) || "[]"); } catch { saved = []; }
+  if (!Array.isArray(saved)) saved = [];
+  const seen = new Set();
+  const out = [];
+  for (const item of saved) {
+    const roomId = typeof item === "number" ? item : item?.room_id; // older drafts were plain room ids
+    if (roomId !== undefined && roomId !== null) {
+      const room = state.rooms.find((r) => r.id === roomId);
+      if (room && !room.is_own && !seen.has(`r${room.id}`)) { seen.add(`r${room.id}`); out.push({ kind: "room", room }); }
+    } else if (item?.type && state.hostels.some((h) => h.code === item.type.hostel)) {
+      const t = { hostel: item.type.hostel, seater: item.type.seater ?? null, ac: item.type.ac ?? null, floor: item.type.floor ?? null };
+      if (!seen.has(`t${typeKey(t)}`)) { seen.add(`t${typeKey(t)}`); out.push({ kind: "type", type: t }); }
+    }
+  }
+  state.queue = out.slice(0, MAX);
 }
 
 function update() {
@@ -310,16 +423,26 @@ function update() {
   renderQueue();
 }
 
+// Put keyboard focus back on a sensible control after the list is redrawn.
+function refocus(selectors) {
+  for (const sel of selectors) {
+    const el = document.querySelector(sel);
+    if (el && !el.disabled) { el.focus(); return; }
+  }
+}
+
 // ---------------------------------------------------------------- actions
 function rank(id) {
   const room = state.rooms.find((r) => r.id === id);
-  if (!room || state.queue.length >= MAX || state.queue.some((r) => r.id === id)) return;
-  state.queue.push(room);
+  if (!room || room.is_own || state.queue.length >= MAX || state.queue.some((e) => e.kind === "room" && e.room.id === id)) return;
+  state.queue.push({ kind: "room", room });
   saveDraft();
   update();
-  toast(`Added ${shortName(room)} as choice #${state.queue.length}`, "Reorder your list any time before you submit.", { icon: "bookmark_add" });
+  refocus([`[data-unrank="${id}"]`]);
+  toast(`Added ${shortName(room)} as choice ${state.queue.length}`, "You can change the order any time before you send it.", { icon: "playlist_add", position: toastWhere() });
 }
 function unrank(index) {
+  if (index < 0) return;
   state.queue.splice(index, 1);
   saveDraft();
   update();
@@ -330,20 +453,61 @@ function move(index, dir) {
   [state.queue[index], state.queue[to]] = [state.queue[to], state.queue[index]];
   saveDraft();
   update();
+  refocus([`[data-move="${to}"][data-dir="${dir}"]`, `[data-move="${to}"][data-dir="${-dir}"]`]);
+}
+
+// What to tell the student for each error the server can send back.
+const ERROR_HINTS = {
+  duplicate_room: "Remove the repeated choice, then send again.",
+  empty_type: "Change that room type or remove it, then send again.",
+  unknown_hostel: "Reload this page to get the current list of hostels.",
+  unknown_room: "Reload this page to get the current list of rooms.",
+  wrong_hostel_gender: "Remove that choice. You can only pick hostels you are allowed to live in.",
+  own_room: "Remove your own room from the list.",
+  no_seat: "Ask the hostel office to allocate you a room first.",
+  too_many: `Keep at most ${MAX} choices.`,
+  empty_list: "Add at least one choice.",
+  invalid_input: "Reload this page and try again.",
+};
+
+function clearSubmitError() {
+  const box = $("#submit-error");
+  if (box) box.innerHTML = "";
+}
+function showSubmitError(error, title = "Your request wasn't sent") {
+  const hint = ERROR_HINTS[error.code] || "Try again in a moment.";
+  $("#submit-error").innerHTML = html`
+    <div class="notice-bad" role="alert">
+      <span class="material-symbols-outlined text-[18px] text-bad shrink-0" aria-hidden="true">error</span>
+      <div class="flex flex-col gap-0.5 min-w-0">
+        <span class="font-semibold text-ink">${title}</span>
+        <span class="break-words">${error.message}</span>
+        <span class="faint">${hint}</span>
+      </div>
+    </div>`;
 }
 
 async function submit(button) {
-  if (button.dataset.mode === "dashboard") return location.assign("/dashboard.html");
-  const restore = setBusy(button, "Submitting…");
+  if (locked() || !state.queue.length) return;
+  clearSubmitError();
+  const choices = state.queue.map((e) => (e.kind === "room"
+    ? { room_id: e.room.id }
+    : { type: { hostel: e.type.hostel, seater: e.type.seater, ac: e.type.ac, floor: e.type.floor } }));
+  const restore = setBusy(button, "Sending…");
   try {
-    const result = await api("/api/requests", { method: "POST", body: { room_ids: state.queue.map((r) => r.id) } });
+    const result = await api("/api/requests", { method: "POST", body: { choices } });
     state.queue = [];
     saveDraft();
-    toast(`Request ${result.tracking_id} submitted`, "Taking you to your dashboard…", { icon: "verified" });
+    toast(`Request ${result.tracking_id} sent`, "Taking you to My swap…", { icon: "check_circle", position: toastWhere() });
     setTimeout(() => location.assign("/dashboard.html"), 1100);
   } catch (error) {
     restore();
-    toastError(error);
+    if (error.code === "already_active") {
+      await load(); // shows the request that is already in the pool
+      toast("You already have a request", "Withdraw it first if you want to send a new list.", { icon: "info", tone: "error", position: toastWhere() });
+      return;
+    }
+    showSubmitError(error);
   }
 }
 
@@ -351,31 +515,60 @@ async function secondary(button) {
   if (button.dataset.mode === "clear") {
     state.queue = [];
     saveDraft();
-    return update();
+    update();
+    return;
   }
-  if (!confirm("Withdraw your request? It leaves the matching pool, and you can submit a new list afterwards.")) return;
+  if (!confirm("Withdraw your request? It leaves the matching pool, and you can send a new list afterwards.")) return;
   const restore = setBusy(button, "Withdrawing…");
   try {
     await api("/api/requests/current", { method: "DELETE" });
-    toast("Request withdrawn", "You can now build a new ranked list.", { icon: "undo" });
+    toast("Request withdrawn", "You can now build a new list.", { icon: "undo", position: toastWhere() });
     await load();
   } catch (error) {
     restore();
-    toastError(error);
+    showSubmitError(error, "Your request wasn't withdrawn");
   }
+}
+
+// ---------------------------------------------------------------- phone panel
+function setPanelOpen(open) {
+  const panel = $("#queue-panel");
+  if (open && wide.matches) return;
+  panel.classList.toggle("hidden", !open);
+  for (const c of PANEL_OPEN) panel.classList.toggle(c, open);
+  panel.setAttribute("role", open ? "dialog" : "complementary");
+  if (open) panel.setAttribute("aria-modal", "true"); else panel.removeAttribute("aria-modal");
+  document.body.classList.toggle("overflow-hidden", open);
+  $("#phone-bar-btn").setAttribute("aria-expanded", String(open));
+  if (open) panel.querySelector("[data-close-panel]")?.focus();
+}
+const panelOpen = () => !$("#queue-panel").classList.contains("hidden") && !wide.matches;
+
+function setFiltersOpen(open) {
+  const panel = $("#filter-panel");
+  panel.classList.toggle("hidden", !open);
+  panel.classList.toggle("flex", open);
+  $("#filters-toggle").setAttribute("aria-expanded", String(open));
 }
 
 function wire() {
   document.addEventListener("click", (e) => {
-    const t = e.target.closest("[data-rank],[data-unrank],[data-remove],[data-move],[data-clear],[data-page],[data-empty]");
+    const t = e.target.closest("[data-rank],[data-unrank],[data-remove],[data-move],[data-clear],[data-page],[data-empty],[data-close-panel]");
     if (!t || t.disabled) return;
     if (t.dataset.rank) rank(Number(t.dataset.rank));
-    else if (t.dataset.unrank) unrank(state.queue.findIndex((r) => r.id === Number(t.dataset.unrank)));
-    else if (t.dataset.remove) unrank(Number(t.dataset.remove));
-    else if (t.dataset.move) move(Number(t.dataset.move), Number(t.dataset.dir));
+    else if (t.dataset.unrank) unrank(state.queue.findIndex((x) => x.kind === "room" && x.room.id === Number(t.dataset.unrank)));
+    else if (t.dataset.remove) {
+      const i = Number(t.dataset.remove);
+      unrank(i);
+      refocus([`[data-remove="${Math.min(i, state.queue.length - 1)}"]`, "[data-empty]"]);
+    } else if (t.dataset.move) move(Number(t.dataset.move), Number(t.dataset.dir));
     else if (t.dataset.clear) clearFilter(t.dataset.clear);
-    else if (t.dataset.page) { state.page = Number(t.dataset.page); renderList(); $("#room-list").scrollIntoView({ behavior: "smooth", block: "start" }); }
-    else if (t.hasAttribute("data-empty")) $("#room-list").scrollIntoView({ behavior: "smooth", block: "start" });
+    else if (t.dataset.page) { state.page = Number(t.dataset.page); renderList(); $("#rooms-heading").parentElement.scrollIntoView({ behavior: "smooth", block: "start" }); }
+    else if (t.hasAttribute("data-close-panel")) { setPanelOpen(false); $("#phone-bar-btn").focus(); }
+    else if (t.hasAttribute("data-empty")) {
+      if (panelOpen()) setPanelOpen(false);
+      $("#room-list").scrollIntoView({ behavior: "smooth", block: "start" });
+    }
   });
   const onChange = (key) => (e) => { state.filters[key] = e.target.value; state.page = 1; update(); };
   $("#filter-hostel").addEventListener("change", onChange("hostel"));
@@ -397,69 +590,104 @@ function wire() {
       renderList();
     });
   }
+  $("#filters-toggle").addEventListener("click", () => setFiltersOpen($("#filter-panel").classList.contains("hidden")));
   $("#lock-submit-btn").addEventListener("click", (e) => submit(e.currentTarget));
   $("#secondary-btn").addEventListener("click", (e) => secondary(e.currentTarget));
 
-  // Drag to reorder (desktop). Phones use the arrow buttons.
+  // Room type form
+  $("#type-toggle").addEventListener("click", () => setTypeFormOpen($("#type-form").hidden));
+  $("#type-hostel").addEventListener("change", () => { fillTypeFloors(); renderTypePreview(); });
+  for (const id of ["#type-seater", "#type-ac", "#type-floor"]) $(id).addEventListener("change", renderTypePreview);
+  $("#type-form").addEventListener("submit", (e) => { e.preventDefault(); addType(); });
+
+  // Phone panel
+  $("#phone-bar-btn").addEventListener("click", () => setPanelOpen(true));
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape" && panelOpen()) { setPanelOpen(false); $("#phone-bar-btn").focus(); }
+  });
+  wide.addEventListener("change", () => { if (wide.matches) setPanelOpen(false); });
+
+  // Drag to reorder (mouse). Keyboard and touch use the arrow buttons.
   const box = $("#ranked-queue-container");
   let from = null;
+  const clearMarks = () => $$(".queue-item", box).forEach((el) => el.classList.remove("opacity-50", "border-brass"));
   box.addEventListener("dragstart", (e) => {
-    const item = e.target.closest(".draggable-item[draggable]");
+    const item = e.target.closest(".queue-item[draggable]");
     if (!item) return;
     from = Number(item.dataset.index);
-    item.classList.add("dragging");
+    item.classList.add("opacity-50");
     e.dataTransfer.effectAllowed = "move";
   });
   box.addEventListener("dragover", (e) => {
-    const item = e.target.closest(".draggable-item[draggable]");
+    const item = e.target.closest(".queue-item[draggable]");
     if (from === null || !item) return;
     e.preventDefault();
-    $$(".drop-target", box).forEach((el) => el.classList.remove("drop-target"));
-    item.classList.add("drop-target");
+    $$(".queue-item", box).forEach((el) => el.classList.remove("border-brass"));
+    item.classList.add("border-brass");
   });
   box.addEventListener("drop", (e) => {
-    const item = e.target.closest(".draggable-item[draggable]");
+    const item = e.target.closest(".queue-item[draggable]");
     if (from === null || !item) return;
     e.preventDefault();
     const to = Number(item.dataset.index);
-    const [room] = state.queue.splice(from, 1);
-    state.queue.splice(to, 0, room);
+    const [entry] = state.queue.splice(from, 1);
+    state.queue.splice(to, 0, entry);
     from = null;
     saveDraft();
     update();
   });
-  box.addEventListener("dragend", () => {
-    from = null;
-    $$(".dragging,.drop-target", box).forEach((el) => el.classList.remove("dragging", "drop-target"));
-  });
+  box.addEventListener("dragend", () => { from = null; clearMarks(); });
 }
 
+// ---------------------------------------------------------------- loading
 function skeleton() {
-  $("#room-list").innerHTML = Array.from({ length: 3 }, () => `<div class="bg-white rounded-2xl border border-gray-200 p-5 flex flex-col md:flex-row gap-5"><div class="skeleton w-full md:w-60 h-52"></div><div class="flex-1 flex flex-col gap-3"><div class="skeleton h-5 w-2/3"></div><div class="skeleton h-16 w-full"></div><div class="skeleton h-8 w-1/2"></div></div></div>`).join("");
+  const list = $("#room-list");
+  list.setAttribute("aria-busy", "true");
+  list.innerHTML = Array.from({ length: 3 }, () => `<div class="card p-4 sm:p-5 flex flex-col gap-3" aria-hidden="true"><div class="flex justify-between gap-3"><div class="flex flex-col gap-2 flex-1"><div class="skeleton h-3 w-1/3 rounded-md"></div><div class="skeleton h-5 w-1/4 rounded-md"></div></div><div class="skeleton h-6 w-24 rounded-md"></div></div><div class="flex gap-1.5"><div class="skeleton h-6 w-20 rounded-md"></div><div class="skeleton h-6 w-14 rounded-md"></div><div class="skeleton h-6 w-32 rounded-md"></div></div><div class="flex justify-between items-center pt-3 border-t border-line"><div class="skeleton h-3 w-40 rounded-md"></div><div class="skeleton h-8 w-32 rounded-lg"></div></div></div>`).join("");
+  $("#ranked-queue-container").innerHTML = Array.from({ length: 3 }, () => `<li class="skeleton h-12 rounded-lg" aria-hidden="true"></li>`).join("");
+  $("#count-label").textContent = "Loading rooms…";
+  $("#pagination").innerHTML = "";
+  $("#lock-submit-btn").disabled = true;
 }
 
 async function load() {
+  skeleton();
   try {
     const [listing, dashboard] = await Promise.all([api("/api/rooms"), api("/api/me/dashboard")]);
     state.rooms = listing.rooms;
     state.hostels = listing.hostels;
     state.lastRun = listing.last_run;
     state.request = dashboard.request;
-    $("#filter-hostel").innerHTML = `<option value="">All hostels (${listing.hostels.length})</option>`
+    state.loaded = true;
+    $("#filter-hostel").innerHTML = `<option value="">All hostels</option>`
       + listing.hostels.map((h) => html`<option value="${h.code}">${h.name}</option>`).join("");
+    $("#filter-floor").innerHTML = `<option value="">Any floor</option>`
+      + floorsOf("").map((f) => html`<option value="${f}">${floorLabel(f)}</option>`).join("");
+    if (!state.hostels.some((h) => h.code === state.filters.hostel)) state.filters.hostel = "";
+    if (state.filters.floor !== "" && !floorsOf("").includes(Number(state.filters.floor))) state.filters.floor = "";
+    const typeHostel = $("#type-hostel").value;
+    $("#type-hostel").innerHTML = listing.hostels.map((h) => html`<option value="${h.code}">${h.name}</option>`).join("");
+    if (listing.hostels.some((h) => h.code === typeHostel)) $("#type-hostel").value = typeHostel;
+    fillTypeFloors();
     if (!locked()) loadDraft();
     syncControls();
     renderYield();
     update();
   } catch (error) {
     if (error.status === 401) return location.replace("/");
-    $("#room-list").innerHTML = html`<div class="bg-white rounded-2xl border border-red-200 p-10 text-center"><span class="material-symbols-outlined text-[36px] text-red-500">error</span><h3 class="font-extrabold text-text-main mt-2">Couldn't load rooms</h3><p class="text-xs text-text-muted mt-1">${error.message}</p><button class="mt-4 px-4 py-2 rounded-full bg-text-main text-white text-xs font-bold" id="retry" type="button">Try again</button></div>`;
+    $("#room-list").setAttribute("aria-busy", "false");
+    $("#count-label").textContent = "Rooms didn't load";
+    $("#room-list").innerHTML = html`<div class="notice-bad" role="alert"><span class="material-symbols-outlined text-[18px] text-bad shrink-0" aria-hidden="true">error</span><div class="flex flex-col gap-1 min-w-0"><span class="font-semibold text-ink">Couldn't load rooms</span><span class="break-words">${error.message}</span><div><button class="btn-secondary btn-sm mt-2" id="retry" type="button">Try again</button></div></div></div>`;
+    $("#ranked-queue-container").innerHTML = "";
+    $("#yield-text").textContent = "Not available right now.";
+    $("#phone-bar-text").textContent = "Rooms didn't load";
+    $("#type-box").hidden = true;
+    $("#lock-submit-btn").disabled = true;
     $("#retry").addEventListener("click", load);
   }
 }
 
 me = await requireUser("student");
 fillHeader(me);
-skeleton();
 wire();
 load();

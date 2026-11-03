@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>CampusSwap · Lecture slots</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 32 32%27%3E%3Crect width=%2732%27 height=%2732%27 rx=%277%27 fill=%27%23D4B06A%27/%3E%3Cpath d=%27M9 12h13l-3-3M23 20H10l3 3%27 stroke=%27%231A1408%27 stroke-width=%272.5%27 fill=%27none%27 stroke-linecap=%27round%27 stroke-linejoin=%27round%27/%3E%3C/svg%3E"/>
+<link rel="stylesheet" href="/assets/slots.css"/>
+</head>
+<body>
+<header class="topbar"><div class="topbar-inner">
+  <a class="brand" href="/"><span class="brand-mark"><span class="material-symbols-outlined text-[18px]" aria-hidden="true">sync_alt</span></span>CampusSwap</a>
+  <nav class="hidden sm:flex items-center gap-1" aria-label="Pages">
+    <a class="nav-link" href="/slots.html" aria-current="page"><span class="material-symbols-outlined text-[18px]" aria-hidden="true">calendar_month</span>Lecture slots</a>
+  </nav>
+  <div class="ml-auto flex items-center gap-3">
+    <div class="avatar" data-user-initials></div>
+    <div class="hidden md:flex flex-col leading-tight min-w-0 max-w-[220px]"><span class="text-sm font-semibold truncate" data-user-name>…</span><span class="text-xs faint truncate" data-user-sub></span></div>
+    <button class="icon-btn" data-logout type="button" aria-label="Sign out" title="Sign out"><span class="material-symbols-outlined text-[20px]" aria-hidden="true">logout</span></button>
+  </div>
+</div></header>
+
+<main class="max-w-6xl mx-auto px-4 sm:px-6 py-8 flex flex-col gap-8">
+  <div>
+    <h1 class="page-title">Lecture slots</h1>
+    <p class="muted mt-1 max-w-3xl">Offer one of your weekly lectures and rank up to 5 slots you would rather teach in. When a chain of teachers can all swap, each of you moves with your course to a new slot; the time and hall of every slot stay the same.</p>
+    <p class="text-xs faint mt-2" id="run-line"></p>
+  </div>
+
+  <section aria-label="Your slot swap" aria-live="polite" id="status">
+    <div class="skeleton h-44 w-full"></div>
+  </section>
+
+  <section aria-label="Ask to move a lecture" id="builder">
+    <div class="flex flex-col gap-4">
+      <div class="skeleton h-6 w-56"></div>
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3"><div class="skeleton h-24"></div><div class="skeleton h-24"></div></div>
+      <div class="skeleton h-80 w-full"></div>
+    </div>
+  </section>
+
+  <section aria-label="Activity" id="activity">
+    <div class="skeleton h-40 w-full"></div>
+  </section>
+</main>
+<script src="/js/slots.js" type="module"></script>
+</body></html>

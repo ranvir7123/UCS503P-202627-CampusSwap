@@ -1,0 +1,86 @@
+@startuml dfd-level1
+' CampusSwap - Data flow diagram, Level 1
+' Gane-Sarson style: square = external entity, rounded box = process,
+' box with a D number = data store.
+' Every link is written left to right (entity, process, store) so the layout
+' keeps three columns; "<--" only flips the arrow head.
+left to right direction
+skinparam dpi 170
+skinparam defaultFontName "Arial"
+skinparam shadowing false
+skinparam ArrowColor #475569
+skinparam ArrowFontSize 12
+skinparam legend {
+  BackgroundColor #FFFFFF
+  BorderColor #94A3B8
+  FontSize 13
+}
+skinparam nodesep 18
+skinparam ranksep 150
+skinparam rectangle {
+  BackgroundColor<<entity>> #E2E8F0
+  BorderColor<<entity>> #475569
+  FontStyle<<entity>> bold
+  BackgroundColor<<process>> #FFF0F2
+  BorderColor<<process>> #FF385C
+  RoundCorner<<process>> 25
+  BackgroundColor<<store>> #FFF7EB
+  BorderColor<<store>> #FFA114
+}
+hide stereotype
+
+rectangle "Student" <<entity>> as Student
+rectangle "Hostel Staff\n(Warden)" <<entity>> as Warden
+
+rectangle "<b>1.0</b>\nSign in" <<process>> as P1
+rectangle "<b>2.0</b>\nBrowse rooms" <<process>> as P2
+rectangle "<b>3.0</b>\nSubmit or\nwithdraw request" <<process>> as P3
+rectangle "<b>5.0</b>\nAccept or decline\nswap chain" <<process>> as P5
+rectangle "<b>7.0</b>\nShow status\nand reports" <<process>> as P7
+rectangle "<b>4.0</b>\nRun matching\nround (TTC)" <<process>> as P4
+rectangle "<b>6.0</b>\nApprove chain" <<process>> as P6
+
+rectangle "<b>D1</b> | Users and sessions" <<store>> as D1
+rectangle "<b>D2</b> | Hostels, rooms and seats" <<store>> as D2
+rectangle "<b>D3</b> | Swap requests and preferences" <<store>> as D3
+rectangle "<b>D4</b> | Match runs and swap chains" <<store>> as D4
+rectangle "<b>D5</b> | Event log" <<store>> as D5
+
+Student --> P1 : email, password
+Warden --> P1 : email, password
+P1 <--> D1 : password hash /\nnew session
+
+Student <-- P2 : rooms + "open\nto swap" counts
+P2 <-- D2 : eligible rooms
+P2 <-- D3 : open requests
+
+Student --> P3 : ranked room IDs\nor withdraw
+Student <-- P3 : tracking ID or\nreason refused
+P3 <-- D2 : seat, hostel gender
+P3 --> D3 : new or withdrawn\nrequest
+
+Student --> P5 : accept / decline
+P5 <--> D4 : answer /\nchain status
+P5 --> D3 : open or withdrawn
+
+Student <-- P7 : dashboard,\nmilestones
+Warden <-- P7 : overview,\nCSV export
+P7 <-- D3 : requests
+P7 <-- D4 : chains
+P7 <-- D5 : events
+
+Warden --> P4 : algorithm,\ndry run on/off
+Warden <-- P4 : Match Yield,\ntrace
+P4 <--> D3 : open requests /\nstatus matched
+P4 --> D4 : run summary, chains\n(48-hour deadline)
+
+Warden --> P6 : approve chain
+P6 <--> D4 : chain /\nstatus approved
+P6 --> D2 : new seat occupants
+P6 --> D3 : status completed
+
+legend bottom right
+  Processes 3.0, 4.0, 5.0 and 6.0 also add one entry
+  to <b>D5</b> for every change (arrows not drawn).
+endlegend
+@enduml

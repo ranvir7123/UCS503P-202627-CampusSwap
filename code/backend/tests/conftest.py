@@ -8,6 +8,16 @@ from app.models import Base
 NOW = datetime(2026, 9, 14, 10, 0, 0)  # fixed "current time" for tests
 
 
+@pytest.fixture(autouse=True)
+def normal_timing():
+    """Every test starts with the normal times (demo-mode tests switch them)."""
+    from app import timing
+
+    timing.use(timing.NORMAL)
+    yield
+    timing.use(timing.NORMAL)
+
+
 @pytest.fixture
 def engine():
     engine = make_engine("sqlite://")

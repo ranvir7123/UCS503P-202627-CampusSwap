@@ -11,6 +11,8 @@ skinparam sequence {
   ActorBorderColor #475569
 }
 autonumber
+hide footbox
+skinparam maxMessageSize 170
 
 actor Student
 actor "Warden" as Warden
@@ -24,7 +26,7 @@ database "SQLite" as DB
 Student -> UI : rank up to 5 rooms, press Submit
 UI -> API : POST /api/requests {room_ids}
 API -> SVC : submit_request(student, room_ids)
-SVC -> DB : check rules (own room, duplicates,\nhostel gender, one active request)
+SVC -> DB : check rules (own room, duplicates, hostel gender, one active request)
 SVC -> DB : INSERT swap_request (open) + preferences
 SVC --> API : tracking ID
 API --> UI : 201 {tracking_id: "CS-2026-0013"}

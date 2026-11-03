@@ -8,6 +8,7 @@ from datetime import datetime, time, timedelta
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
+from app import timing
 from app.models import CycleMember, Event, Hostel, MatchRun, Room, Student, SwapCycle, SwapRequest
 
 MILESTONES = [
@@ -35,6 +36,14 @@ def room_dict(room: Room) -> dict:
         "seater": room.seater, "ac": room.ac, "washroom": room.washroom,
         "tags": [t.strip() for t in room.tags.split(",") if t.strip()],
     }
+
+
+def pref_dict(pref) -> dict:
+    return {"rank": pref.rank, "kind": "type" if pref.is_type else "room", "label": pref.label,
+            "room": None if pref.is_type else room_dict(pref.room),
+            "type": None if not pref.is_type else {
+                "hostel": pref.type_hostel.code, "seater": pref.type_seater, "ac": pref.type_ac,
+                "floor": pref.type_floor}}
 
 
 def run_summary(run: MatchRun | None) -> dict | None:
@@ -74,6 +83,7 @@ def public_stats(db: Session, now: datetime) -> dict:
         "hostels": db.scalar(select(func.count(Hostel.id))),
         "requests_per_day": per_day,
         "last_run": run_summary(_latest_saved_run(db)),
+        "timing": timing.current().view(),
     }
 
 
@@ -126,7 +136,7 @@ def student_dashboard(db: Session, student: Student, now: datetime) -> dict:
                                            "warden": seat.room.hostel.warden_name},
         "request": None if request is None else {
             "tracking_id": request.tracking_id, "status": request.status, "created_at": iso(request.created_at),
-            "preferences": [{"rank": p.rank, "room": room_dict(p.room)} for p in request.preferences],
+            "preferences": [pref_dict(p) for p in request.preferences],
         },
         "cycle": cycle_view,
         "milestones": [
@@ -157,7 +167,8 @@ def _cycle_view(cycle: SwapCycle, me: CycleMember) -> dict:
 
 # ---------------------------------------------------------------- admin
 def admin_overview(db: Session) -> dict:
-    latest_any = db.scalar(select(MatchRun).order_by(MatchRun.id.desc()).limit(1))
+    latest_any = db.scalar(select(MatchRun).where(MatchRun.algorithm.in_(("ttc", "pairwise")))
+                           .order_by(MatchRun.id.desc()).limit(1))  # room rounds only, not slot rounds
     latest_pairwise = db.scalar(select(MatchRun).where(MatchRun.algorithm == "pairwise")
                                 .order_by(MatchRun.id.desc()).limit(1))
     comparison = None
@@ -194,7 +205,7 @@ def admin_requests(db: Session) -> list[dict]:
             "student": {"name": request.student.name, "roll_no": request.student.roll_no,
                         "year": request.student.year, "initials": initials(request.student.name)},
             "offered_room": request.seat.room.label,
-            "preferences": [p.room.label for p in request.preferences],
+            "preferences": [p.label for p in request.preferences],
             "assigned_room": membership.receives_seat.room.label if active_cycle else None,
             "received_rank": membership.received_rank if active_cycle else None,
             "cycle": None if not active_cycle else {
@@ -206,6 +217,19 @@ def admin_requests(db: Session) -> list[dict]:
             },
         })
     return rows
+
+
+def events_csv(db: Session) -> str:
+    """The whole audit log, oldest first (FR-TRACK-08)."""
+    out = io.StringIO()
+    writer = csv.writer(out)
+    writer.writerow(["id", "time_utc", "kind", "message", "student", "roll_no", "cycle_id"])
+    people = {s.id: s for s in db.scalars(select(Student))}
+    for e in db.scalars(select(Event).order_by(Event.id)):
+        who = people.get(e.student_id)
+        writer.writerow([e.id, iso(e.created_at), e.kind, e.message, who.name if who else "",
+                         who.roll_no if who else "", e.cycle_id or ""])
+    return out.getvalue()
 
 
 def export_csv(db: Session) -> str:

@@ -15,6 +15,7 @@ from sqlalchemy.orm import Session
 from app.errors import DomainError
 from app.models import Admin, CycleMember, Student, SwapCycle
 from app.services.events import log
+from app.services.pdf import approval_form
 
 
 def accept(db: Session, student: Student, cycle_id: int, now: datetime) -> SwapCycle:
@@ -51,12 +52,22 @@ def approve(db: Session, admin: Admin, cycle_id: int, now: datetime) -> SwapCycl
     for m in cycle.members:
         m.receives_seat.occupant = m.request.student
         m.request.status, m.request.updated_at = "completed", now
-    cycle.status, cycle.closed_at = "approved", now
+    cycle.status, cycle.closed_at, cycle.approved_by = "approved", now, admin
     for m in cycle.members:
         log(db, now, "swap_approved", f"Warden approved the swap. Your new room: {m.receives_seat.room.label}.",
             student_id=m.request.student_id, cycle_id=cycle.id)
     db.flush()
     return cycle
+
+
+def approval_form_pdf(db: Session, cycle_id: int) -> bytes:
+    """The signed-off form the hostel office files for an approved swap (FR-APPR-03)."""
+    cycle = db.get(SwapCycle, cycle_id)
+    if cycle is None:
+        raise DomainError(404, "no_cycle", "That swap does not exist.")
+    if cycle.status != "approved":
+        raise DomainError(409, "not_approved", "The form is ready once the warden has approved the swap.")
+    return approval_form(cycle)
 
 
 def expire_overdue(db: Session, now: datetime) -> int:

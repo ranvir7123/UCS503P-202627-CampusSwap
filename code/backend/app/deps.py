@@ -11,7 +11,7 @@ from sqlalchemy.orm import Session
 
 from app.clock import utcnow
 from app.errors import DomainError
-from app.models import Admin, LoginSession, Student, User
+from app.models import Admin, Faculty, LoginSession, Student, User
 from app.security import token_digest
 
 SESSION_COOKIE = "cs_session"
@@ -53,6 +53,13 @@ def current_admin(user: Annotated[User, Depends(current_user)]) -> Admin:
     return user
 
 
+def current_faculty(user: Annotated[User, Depends(current_user)]) -> Faculty:
+    if not isinstance(user, Faculty):
+        raise DomainError(403, "forbidden", "Only faculty can do this.")
+    return user
+
+
 CurrentStudent = Annotated[Student, Depends(current_student)]
+CurrentFaculty = Annotated[Faculty, Depends(current_faculty)]
 CurrentAdmin = Annotated[Admin, Depends(current_admin)]
 CurrentUser = Annotated[User, Depends(current_user)]

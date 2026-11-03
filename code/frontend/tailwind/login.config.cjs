@@ -1,61 +1,6 @@
-// Theme copied from reference 1 (login page).
+const theme = require("./theme.cjs");
+
 module.exports = {
-  content: ["./public/index.html", "./public/js/login.js", "./public/js/ui.js"],
-  darkMode: "class",
-  theme: {
-    extend: {
-      colors: {
-        "primary": "#FF385C",
-        "primary-hover": "#E00B41",
-        "coral-subtle": "#FFF0F2",
-        "coral-glow": "rgba(255, 56, 92, 0.18)",
-        "amber-accent": "#FFA114",
-        "sunny-amber": "#FFF7EB",
-        "amber-warm": "#FFB800",
-        "success-mint": "#00A86B",
-        "mint-subtle": "#EBFBF3",
-        "surface-card": "#FFFFFF",
-        "surface-subtle": "#FBF9F8",
-        "surface-canvas": "#FFFDF9",
-        "text-primary": "#1A1A1E",
-        "text-secondary": "#57534E",
-        "text-tertiary": "#8E8883",
-        "border-hairline": "#F0EDE8",
-      },
-      fontFamily: {
-        sans: ["Plus Jakarta Sans", "sans-serif"],
-        mono: ["JetBrains Mono", "monospace"],
-      },
-      keyframes: {
-        floatBadge1: { "0%, 100%": { transform: "translateY(0px) rotate(0deg)" }, "50%": { transform: "translateY(-12px) rotate(1.5deg)" } },
-        floatBadge2: { "0%, 100%": { transform: "translateY(0px) rotate(0deg)" }, "50%": { transform: "translateY(10px) rotate(-1.5deg)" } },
-        floatBadge3: { "0%, 100%": { transform: "translateY(0px) rotate(0deg)" }, "50%": { transform: "translateY(-9px) rotate(-1.2deg)" } },
-        floatBadge4: { "0%, 100%": { transform: "translateY(0px) rotate(0deg)" }, "50%": { transform: "translateY(11px) rotate(1.8deg)" } },
-        meshSlow: {
-          "0%, 100%": { transform: "translate(0px, 0px) scale(1)" },
-          "33%": { transform: "translate(30px, -20px) scale(1.08)" },
-          "66%": { transform: "translate(-25px, 25px) scale(0.96)" },
-        },
-        shimmerWave: { "0%": { transform: "translateX(-100%)" }, "100%": { transform: "translateX(220%)" } },
-        sparklineGlow: {
-          "0%, 100%": { filter: "drop-shadow(0 2px 5px rgba(255, 56, 92, 0.35))" },
-          "50%": { filter: "drop-shadow(0 4px 12px rgba(255, 56, 92, 0.65))" },
-        },
-        drawSparkline: { "0%": { strokeDashoffset: "200" }, "100%": { strokeDashoffset: "0" } },
-        bounceGentle: { "0%, 100%": { transform: "translateY(0)" }, "50%": { transform: "translateY(-3.5px)" } },
-        fadeInUp: { "0%": { opacity: "0", transform: "translateY(18px)" }, "100%": { opacity: "1", transform: "translateY(0)" } },
-      },
-      animation: {
-        "float-1": "floatBadge1 5.2s ease-in-out infinite",
-        "float-2": "floatBadge2 6.4s ease-in-out infinite 0.6s",
-        "float-3": "floatBadge3 5.8s ease-in-out infinite 1.2s",
-        "float-4": "floatBadge4 6.8s ease-in-out infinite 0.3s",
-        "mesh-ambient": "meshSlow 18s ease-in-out infinite alternate",
-        "bounce-shield": "bounceGentle 2.2s infinite ease-in-out",
-        "spark-glow": "sparklineGlow 3s ease-in-out infinite",
-        "fade-in-stagger": "fadeInUp 0.65s cubic-bezier(0.16, 1, 0.3, 1) forwards",
-      },
-    },
-  },
-  plugins: [require("@tailwindcss/forms"), require("@tailwindcss/container-queries")],
+  ...theme,
+  content: ["./public/index.html", "./public/js/login.js", "./public/js/ui.js", "./public/js/api.js", "./public/js/nav.js", "./src/tailwind.css"],
 };

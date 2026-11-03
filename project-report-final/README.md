@@ -1,0 +1,3 @@
+# CampusSwap final-stage report
+
+To build the PDF, upload this whole folder to Overleaf and set the compiler to pdfLaTeX (XeLaTeX also works) and the bibliography tool to biber, or on your own machine run `tectonic -X compile main.tex` from inside this folder. The test numbers and test tables in the report are not typed by hand: they live in `generated/` and are rewritten from a real test run by running `python project-report-final/tools/make_test_tables.py` from the repository root, so run that again after any code change and then rebuild the PDF. Screenshots go in `figures/` under the names used in `main.tex`; if one is missing, the PDF still builds and shows a framed "missing" box in its place.

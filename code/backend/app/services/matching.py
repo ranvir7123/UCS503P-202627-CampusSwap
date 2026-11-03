@@ -2,18 +2,19 @@
 from __future__ import annotations
 
 import threading
-from datetime import datetime, timedelta
+from datetime import datetime
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from app import timing
 from app.errors import DomainError
 from app.models import Admin, CycleMember, MatchRun, Seat, SwapCycle, SwapRequest
 from app.services.cycles import expire_overdue
+from app.services import mail
 from app.services.events import log
 from engine import MatchResult, Participant, cycle_length_counts, match_yield, pairwise_swaps, top_trading_cycles
 
-CONFIRM_WINDOW = timedelta(hours=48)
 ALGORITHMS = {"ttc": top_trading_cycles, "pairwise": pairwise_swaps}
 _run_lock = threading.Lock()  # only one matching round at a time
 
@@ -65,17 +66,24 @@ def compare_algorithms(db: Session, admin: Admin, now: datetime) -> tuple[MatchR
 
 
 def _wanted_seats(request: SwapRequest) -> tuple[int, ...]:
-    """Ranked rooms -> ranked seats (a room's seats in id order)."""
-    return tuple(seat.id for pref in request.preferences for seat in pref.room.seats)
+    """Ranked choices -> ranked seats. A room gives its seats in id order; a room
+    type gives the seats of every matching room except the student's own."""
+    own_room = request.seat.room_id
+    seats: list[int] = []
+    for pref in request.preferences:
+        for room in pref.rooms():
+            if room.id != own_room:
+                seats.extend(seat.id for seat in room.seats if seat.id not in seats)
+    return tuple(seats)
 
 
 def _received_rank(db: Session, request: SwapRequest, seat_id: int) -> int:
-    room_id = db.get(Seat, seat_id).room_id
-    return next(p.rank for p in request.preferences if p.room_id == room_id)
+    room = db.get(Seat, seat_id).room
+    return next(p.rank for p in request.preferences if p.matches(room))
 
 
 def _save_cycle(db, run, members, by_id, result: MatchResult, ranks, now) -> None:
-    cycle = SwapCycle(match_run=run, status="proposed", deadline=now + CONFIRM_WINDOW, created_at=now)
+    cycle = SwapCycle(match_run=run, status="proposed", deadline=now + timing.current().confirm_window, created_at=now)
     db.add(cycle)
     for position, pid in enumerate(members):
         request = by_id[pid]
@@ -90,6 +98,7 @@ def _save_cycle(db, run, members, by_id, result: MatchResult, ranks, now) -> Non
         log(db, now, "match_found",
             f"Match found: a {len(members)}-way swap. You get your choice #{member.received_rank}. "
             f"Please confirm before the deadline.", student_id=member.request.student_id, cycle_id=cycle.id)
+        mail.match_found(db, now, member)
 
 
 def _trace_lines(result: MatchResult, by_id: dict[int, SwapRequest], run: MatchRun) -> list[str]:
