@@ -10,7 +10,8 @@ deliverable: demo data, CI, this docs site and the report.
 | `code/backend/app/models.py` | Every database table (SQLAlchemy) |
 | `code/backend/app/db.py` | Connects to SQLite; switches foreign keys on |
 | `code/backend/seed.py` | Synthetic demo data with a known result |
-| `diagrams/*.puml`, `diagrams/render.py` | The four UML diagrams and the script that draws them |
+| `diagrams/*.puml`, `diagrams/render.py` | Every diagram (UML, data flow, architecture, ER) and the script that draws them |
+| `srs/main.tex`, `srs/figures/` | The Software Requirements Specification (SRS) and its images |
 | `.github/workflows/tests.yml` | Runs all tests on every push (CI) |
 | `.github/workflows/mkdocs.yml`, `mkdocs.yml`, `docs/` | Publishes this site from `master` |
 | `project-report-prototype-stage/` | The TIET LaTeX report |
@@ -54,8 +55,10 @@ Be ready to explain:
   one branch (all accepted vs. someone declined).
 - **Activity diagram swimlanes** show who does each step (Student / System / Warden).
 
-To change a diagram, edit the `.puml` file and run `python diagrams/render.py`. It sends
-only the diagram text to the public PlantUML server and saves PNG and SVG files in `docs/diagrams/`.
+To change a diagram, edit the `.puml` file and run `python diagrams/render.py` (add file
+names, such as `python diagrams/render.py er`, to redraw only those). It sends only the
+diagram text to the public PlantUML server, saves PNG and SVG files in `docs/diagrams/`, and
+copies the PNG into `srs/figures/` so the SRS uses the same picture.
 
 ## Delivery
 

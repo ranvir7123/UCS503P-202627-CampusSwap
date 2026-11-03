@@ -1,0 +1,76 @@
+@startuml class-services
+' CampusSwap - Class diagram, part 2: services (business rules) and the matching engine.
+' The domain classes they use are drawn as name-only boxes; their attributes are in class.puml.
+set separator none
+skinparam dpi 170
+skinparam defaultFontName "Arial"
+skinparam shadowing false
+skinparam classAttributeIconSize 0
+skinparam nodesep 40
+skinparam ranksep 55
+skinparam class {
+  BackgroundColor #FFFFFF
+  BorderColor #475569
+  ArrowColor #475569
+  BackgroundColor<<model>> #F8FAFC
+  BorderColor<<model>> #94A3B8
+}
+skinparam package {
+  BorderColor #94A3B8
+  FontStyle bold
+}
+hide empty methods
+hide <<model>> members
+hide <<model>> stereotype
+
+package "Business rules (app/services)" {
+  class RequestService <<service>> {
+    +submit_request(student, room_ids)
+    +withdraw_request(student)
+  }
+  class MatchingService <<service>> {
+    +run_matching(admin, algorithm, dry_run)
+    +compare_algorithms(admin)
+  }
+  class CycleService <<service>> {
+    +accept(student, cycle_id)
+    +decline(student, cycle_id)
+    +approve(admin, cycle_id)
+    +expire_overdue()
+  }
+}
+
+package "Matching engine (engine/)" {
+  class TTC <<utility>> {
+    +top_trading_cycles(participants) : MatchResult
+    +pairwise_swaps(participants) : MatchResult
+    +match_yield(result, pool_size) : float
+  }
+  class Participant {
+    id : int
+    seat : int
+    wants : tuple[int]
+    +acceptable()
+  }
+  class MatchResult {
+    cycles : tuple[Cycle]
+    unmatched : tuple[int]
+    assignment : dict[int, int]
+    rounds : tuple[Round]
+  }
+}
+
+package "Data model (see part 1)" {
+  class SwapRequest <<model>>
+  class MatchRun <<model>>
+  class SwapCycle <<model>>
+}
+
+RequestService ..> SwapRequest : creates
+MatchingService ..> TTC : uses
+MatchingService ..> MatchRun : saves
+MatchingService ..> CycleService : expire_overdue()
+CycleService ..> SwapCycle : updates
+TTC ..> Participant
+TTC ..> MatchResult : returns
+@enduml

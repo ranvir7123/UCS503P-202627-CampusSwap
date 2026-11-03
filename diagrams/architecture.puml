@@ -1,0 +1,53 @@
+@startuml architecture
+' CampusSwap - System architecture (component view)
+skinparam dpi 170
+skinparam defaultFontName "Arial"
+skinparam shadowing false
+skinparam ArrowColor #475569
+skinparam ArrowFontSize 11
+skinparam component {
+  BackgroundColor #FFFFFF
+  BorderColor #475569
+}
+skinparam node {
+  BackgroundColor #F8FAFC
+  BorderColor #94A3B8
+  FontStyle bold
+}
+skinparam database {
+  BackgroundColor #FFF7EB
+  BorderColor #FFA114
+}
+skinparam actor {
+  BorderColor #475569
+}
+skinparam rectangle {
+  BackgroundColor #FFF0F2
+  BorderColor #FF385C
+}
+
+actor "Student" as Student
+actor "Warden" as Warden
+
+node "Web browser (phone or laptop)" as Browser {
+  component "Pages: login, rooms,\ndashboard, admin\n(HTML + Tailwind CSS)" as Pages
+  component "Page scripts\n(JavaScript: api.js, ui.js, ring.js ...)" as Scripts
+}
+
+node "Server (Python 3.12)" as Server {
+  component "FastAPI routes\nauth, public, student, admin\n(check login and role)" as Routes
+  component "Services\nrequests, matching,\ncycles, views\n(all business rules)" as Services
+  rectangle "Matching engine\nttc, pairwise, metrics\n(pure Python, no database)" as Engine
+  component "SQLAlchemy models" as Models
+  database "SQLite file\ncampusswap.db" as DB
+}
+
+Student --> Pages
+Warden --> Pages
+Pages --> Scripts
+Scripts --> Routes : JSON over HTTP (/api/...)\nsession cookie cs_session
+Routes --> Services : function calls
+Services --> Engine : participants in,\nchains + trace out
+Services --> Models : read / write\n(one transaction per request)
+Models --> DB : SQL
+@enduml
