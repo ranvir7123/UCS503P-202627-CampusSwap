@@ -111,3 +111,26 @@ def test_secure_mode_redirects_plain_http_to_https(tmp_path, clock):
     with make_client(tmp_path, clock, secure=True) as c:
         r = c.get("http://testserver/api/public/stats", follow_redirects=False)
         assert r.status_code in (307, 308) and r.headers["location"].startswith("https://")
+
+
+# ---------------------------------------------------------------- lockout cannot be used against someone else
+def test_failures_from_another_address_do_not_lock_the_owner(seeded):
+    from app.errors import DomainError
+    from app.services import signin
+
+    for _ in range(5):
+        signin.record_failure(seeded, "student1@thapar.edu", "6.6.6.6", NOW)
+    with pytest.raises(DomainError):
+        signin.check_not_blocked(seeded, "student1@thapar.edu", "6.6.6.6", NOW)
+    signin.check_not_blocked(seeded, "student1@thapar.edu", "10.0.0.7", NOW)  # the real owner is not blocked
+
+
+def test_guessing_spread_over_many_addresses_is_still_capped(seeded):
+    from app.errors import DomainError
+    from app.services import signin
+
+    for n in range(50):
+        signin.record_failure(seeded, "student1@thapar.edu", f"10.1.{n}.1", NOW)
+    with pytest.raises(DomainError) as err:
+        signin.check_not_blocked(seeded, "student1@thapar.edu", "10.9.9.9", NOW)
+    assert err.value.code == "too_many_attempts"

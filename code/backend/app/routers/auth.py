@@ -39,7 +39,7 @@ def login(body: LoginIn, request: Request, response: Response, db: DB, now: Now)
     if user.role != body.role:
         raise DomainError(403, "wrong_role", f"This account belongs on the {ROLE_TABS[user.role]} tab. "
                                              "Switch tabs and try again.")
-    signin.clear_failures(db, email)
+    signin.clear_failures(db, email, ip)
     token = new_session_token()
     db.add(LoginSession(token_hash=token_digest(token), user=user, expires_at=now + timedelta(hours=SESSION_HOURS)))
     db.commit()
